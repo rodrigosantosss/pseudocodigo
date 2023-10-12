@@ -1,0 +1,12 @@
+Algoritmo caracteristicas_terreno
+Dados
+    ladoA, ladoB, perimetro, area: real
+    quociente, resto: inteiro
+Início
+    Ler(ladoA, ladoB)
+    area <- ladoA * ladoB
+    perimetro <- 2 * (ladoA + ladoB)
+    quociente <- 10 div 3
+    resto <- 10 mod 3
+    Escrever("O perímetro é ", perimetro, " e a área é ", area, ".")
+Fim
