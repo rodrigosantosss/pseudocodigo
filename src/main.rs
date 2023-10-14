@@ -1,3 +1,4 @@
+mod parser;
 mod tokenizer;
 
 fn main() {
@@ -34,5 +35,10 @@ fn main() {
         std::process::exit(1);
     });
 
-    dbg!(output_file, tokens);
+    let program = parser::parse(tokens).unwrap_or_else(|err| {
+        eprintln!("{err}");
+        std::process::exit(1);
+    });
+
+    dbg!(output_file, program);
 }
