@@ -9,6 +9,7 @@ pub enum Token {
     Data,         // Variáveis
     Begin,        // Inicio
     End,          // Fim
+    Dot,
     If,           // Se
     Then,         // então
     Else,         // Senão
@@ -92,6 +93,7 @@ impl TryFrom<char> for Token {
     fn try_from(value: char) -> Result<Token, ()> {
         match value {
             '\n' => Ok(Self::BreakLine),
+            '.' => Ok(Self::Dot),
             '[' => Ok(Self::OpenSquareBrackets),
             ']' => Ok(Self::CloseSquareBrackets),
             '(' => Ok(Self::OpenParenthesis),
@@ -117,6 +119,7 @@ impl ToString for Token {
             Self::Data => String::from("Variáveis"),
             Self::Begin => String::from("Início"),
             Self::End => String::from("Fim"),
+            Self::Dot => String::from("."),
             Self::If => String::from("Se"),
             Self::Then => String::from("então"),
             Self::Else => String::from("Senão"),
