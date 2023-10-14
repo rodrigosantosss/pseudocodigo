@@ -5,18 +5,18 @@ use std::{
 
 #[derive(Debug)]
 pub enum Token {
-    Algorithm, // Algoritmo
-    Data,      // Dados
-    Begin,     // Inicio
-    End,       // Fim
-    If,        // Se
-    Then,      // então
-    Else,      // Senão
-    While,     // Enquanto,
-    For, // Para
+    Algorithm,    // Algoritmo
+    Data,         // Dados
+    Begin,        // Inicio
+    End,          // Fim
+    If,           // Se
+    Then,         // então
+    Else,         // Senão
+    While,        // Enquanto,
+    For,          // Para
     Do(Box<str>), // faça, repita
-    From, // de
-    To, // até
+    From,         // de
+    To,           // até
     BreakLine,
     OpenSquareBrackets,
     CloseSquareBrackets,
@@ -47,10 +47,10 @@ pub enum Token {
     Greater,
     Equal,
     Different, // <>
-    And, // e
-    Or,  // ou
-    XOr, // xor
-    Not, // não
+    And,       // e
+    Or,        // ou
+    XOr,       // xor
+    Not,       // não
 }
 
 impl From<String> for Token {
