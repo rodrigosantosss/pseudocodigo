@@ -19,8 +19,6 @@ pub enum Token {
     From,         // de
     To,           // até
     BreakLine,
-    OpenSquareBrackets,
-    CloseSquareBrackets,
     OpenParenthesis,
     CloseParenthesis,
     Identifier(Box<str>),
@@ -98,8 +96,6 @@ impl TryFrom<char> for Token {
         match value {
             '\n' => Ok(Self::BreakLine),
             '.' => Ok(Self::Dot),
-            '[' => Ok(Self::OpenSquareBrackets),
-            ']' => Ok(Self::CloseSquareBrackets),
             '(' => Ok(Self::OpenParenthesis),
             ')' => Ok(Self::CloseParenthesis),
             ':' => Ok(Self::Colon),
@@ -149,8 +145,6 @@ impl ToString for Token {
             Self::Different => String::from("<>"),
             Self::Less => String::from("<"),
             Self::BreakLine => String::from("\n"),
-            Self::OpenSquareBrackets => String::from("["),
-            Self::CloseSquareBrackets => String::from("]"),
             Self::OpenParenthesis => String::from("("),
             Self::CloseParenthesis => String::from(")"),
             Self::Colon => String::from(":"),
