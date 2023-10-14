@@ -14,7 +14,7 @@ pub enum Token {
     Else,      // Senão
     While,     // Enquanto,
     For, // Para
-    Do, // faça, repita
+    Do(Box<str>), // faça, repita
     From, // de
     To, // até
     BreakLine,
@@ -27,7 +27,7 @@ pub enum Token {
     Colon,
     IntLiteral(i64),
     RealLiteral(f64),
-    StringLiteral(Box<str>),
+    StringLiteral(Box<str>, char),
     Integer,        // inteiro
     Real,           // real
     Character,      // caractere
@@ -65,7 +65,7 @@ impl From<String> for Token {
             "Senão" => Self::Else,
             "Enquanto" => Self::While,
             "Para" => Self::For,
-            "faça" | "Repita" => Self::Do,
+            "faça" | "Repita" => Self::Do(value.into_boxed_str()),
             "de" => Self::From,
             "até" => Self::To,
             "inteiro" => Self::Integer,
@@ -106,6 +106,65 @@ impl TryFrom<char> for Token {
             '>' => Ok(Self::Greater),
             '=' => Ok(Self::Equal),
             _ => Err(()),
+        }
+    }
+}
+
+impl ToString for Token {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Algorithm => String::from("Algoritmo"),
+            Self::Data => String::from("Dados"),
+            Self::Begin => String::from("Início"),
+            Self::End => String::from("Fim"),
+            Self::If => String::from("Se"),
+            Self::Then => String::from("então"),
+            Self::Else => String::from("Senão"),
+            Self::While => String::from("Enquanto"),
+            Self::For => String::from("Para"),
+            Self::Do(str) => str.clone().into_string(),
+            Self::From => String::from("de"),
+            Self::To => String::from("até"),
+            Self::Integer => String::from("inteiro"),
+            Self::Real => String::from("real"),
+            Self::Character => String::from("caractere"),
+            Self::CharacterChain => String::from("cadeia"),
+            Self::Boolean => String::from("lógico"),
+            Self::True => String::from("verdadeiro"),
+            Self::False => String::from("falso"),
+            Self::IDiv => String::from("div"),
+            Self::Mod => String::from("mod"),
+            Self::And => String::from("e"),
+            Self::Or => String::from("ou"),
+            Self::XOr => String::from("xor"),
+            Self::Not => String::from("não"),
+            Self::Arrow => String::from("<-"),
+            Self::Different => String::from("<>"),
+            Self::Less => String::from("<"),
+            Self::BreakLine => String::from("\n"),
+            Self::OpenSquareBrackets => String::from("["),
+            Self::CloseSquareBrackets => String::from("]"),
+            Self::OpenParenthesis => String::from("("),
+            Self::CloseParenthesis => String::from(")"),
+            Self::Colon => String::from(":"),
+            Self::Plus => String::from("+"),
+            Self::Minus => String::from("-"),
+            Self::Mul => String::from("*"),
+            Self::Div => String::from("/"),
+            Self::Pow => String::from("^"),
+            Self::Comma => String::from(","),
+            Self::Greater => String::from(">"),
+            Self::Equal => String::from("="),
+            Self::Identifier(str) => str.clone().into_string(),
+            Self::RealLiteral(real) => real.to_string(),
+            Self::IntLiteral(integer) => integer.to_string(),
+            Self::StringLiteral(literal, quote) => {
+                let mut str = String::new();
+                str.push(*quote);
+                str.push_str(&literal);
+                str.push(*quote);
+                str
+            }
         }
     }
 }
@@ -242,7 +301,7 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
                     return Err(TokenizeError::MissingEndQuotes(line, char, buffer));
                 }
             }
-            tokens.push(Token::StringLiteral(buffer.into_boxed_str()));
+            tokens.push(Token::StringLiteral(buffer.into_boxed_str(), c));
         } else if !c.is_whitespace() {
             let token: Token = c
                 .try_into()
