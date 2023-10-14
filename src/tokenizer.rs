@@ -237,7 +237,7 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
             line += 1;
             char = 0;
             tokens.push(Token::BreakLine);
-        }  else if c == '<' {
+        } else if c == '<' {
             match iterator.peek() {
                 Some('-') => {
                     iterator.next();
