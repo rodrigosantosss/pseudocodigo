@@ -1,5 +1,5 @@
 Algoritmo caracteristicas_terreno
-Dados
+Variáveis
     ladoA, ladoB, perimetro, area: real
     quociente, resto: inteiro
 Início

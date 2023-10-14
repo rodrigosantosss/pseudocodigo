@@ -6,7 +6,7 @@ use std::{
 #[derive(Debug)]
 pub enum Token {
     Algorithm,    // Algoritmo
-    Data,         // Dados
+    Data,         // Variáveis
     Begin,        // Inicio
     End,          // Fim
     If,           // Se
@@ -57,7 +57,7 @@ impl From<String> for Token {
     fn from(value: String) -> Self {
         match value.as_str() {
             "Algoritmo" => Self::Algorithm,
-            "Dados" => Self::Data,
+            "Variáveis" => Self::Data,
             "Início" => Self::Begin,
             "Fim" => Self::End,
             "Se" => Self::If,
@@ -114,7 +114,7 @@ impl ToString for Token {
     fn to_string(&self) -> String {
         match self {
             Self::Algorithm => String::from("Algoritmo"),
-            Self::Data => String::from("Dados"),
+            Self::Data => String::from("Variáveis"),
             Self::Begin => String::from("Início"),
             Self::End => String::from("Fim"),
             Self::If => String::from("Se"),
