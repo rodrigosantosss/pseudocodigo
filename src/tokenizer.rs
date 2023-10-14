@@ -3,7 +3,7 @@ use std::{
     num::{ParseFloatError, ParseIntError},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Token {
     Algorithm, // Algoritmo
     Data,      // Variáveis
