@@ -172,6 +172,20 @@ impl ToString for Token {
     }
 }
 
+impl Token {
+    pub fn is_value(&self) -> bool {
+        match self {
+            Token::IntLiteral(_)
+            | Token::RealLiteral(_)
+            | Token::StringLiteral(_, _)
+            | Token::Identifier(_)
+            | Token::True
+            | Token::False => true,
+            _ => false,
+        }
+    }
+}
+
 pub enum TokenizeError {
     InvalidToken(usize, usize, String),
     RealLiteralParseError(usize, usize, String, ParseFloatError),
