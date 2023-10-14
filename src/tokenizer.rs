@@ -149,7 +149,7 @@ impl Display for TokenizeError {
 pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
     let mut tokens = Vec::new();
     let mut iterator = code.chars().peekable();
-    let mut line: usize = 0;
+    let mut line: usize = 1;
     let mut char: usize = 0;
 
     while let Some(c) = iterator.next() {
