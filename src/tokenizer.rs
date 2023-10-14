@@ -44,6 +44,8 @@ pub enum Token {
     Comma,
     Less,
     Greater,
+    LessOrEqual,
+    GreaterOrEqual,
     Equal,
     Different, // <>
     And,       // e
@@ -105,7 +107,6 @@ impl TryFrom<char> for Token {
             '/' => Ok(Self::Div),
             '^' => Ok(Self::Pow),
             ',' => Ok(Self::Comma),
-            '>' => Ok(Self::Greater),
             '=' => Ok(Self::Equal),
             _ => Err(()),
         }
@@ -144,6 +145,9 @@ impl ToString for Token {
             Self::Arrow => String::from("<-"),
             Self::Different => String::from("<>"),
             Self::Less => String::from("<"),
+            Self::Greater => String::from(">"),
+            Self::LessOrEqual => String::from("<="),
+            Self::GreaterOrEqual => String::from(">="),
             Self::BreakLine => String::from("\n"),
             Self::OpenParenthesis => String::from("("),
             Self::CloseParenthesis => String::from(")"),
@@ -154,7 +158,6 @@ impl ToString for Token {
             Self::Div => String::from("/"),
             Self::Pow => String::from("^"),
             Self::Comma => String::from(","),
-            Self::Greater => String::from(">"),
             Self::Equal => String::from("="),
             Self::Write => String::from("Escrever"),
             Self::Read => String::from("Ler"),
@@ -234,7 +237,7 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
             line += 1;
             char = 0;
             tokens.push(Token::BreakLine);
-        } else if c == '<' {
+        }  else if c == '<' {
             match iterator.peek() {
                 Some('-') => {
                     iterator.next();
@@ -246,7 +249,21 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
                     char += 1;
                     tokens.push(Token::Different);
                 }
+                Some('=') => {
+                    iterator.next();
+                    char += 1;
+                    tokens.push(Token::LessOrEqual);
+                }
                 Some(_) | None => tokens.push(Token::Less),
+            }
+        } else if c == '>' {
+            match iterator.peek() {
+                Some('=') => {
+                    iterator.next();
+                    char += 1;
+                    tokens.push(Token::GreaterOrEqual);
+                }
+                Some(_) | None => tokens.push(Token::Greater),
             }
         } else if c.is_alphabetic() {
             let mut buffer = String::from(c);
