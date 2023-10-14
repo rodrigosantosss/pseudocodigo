@@ -9,4 +9,4 @@ Início
     quociente <- 10 div 3
     resto <- 10 mod 3
     Escrever("O perímetro é ", perimetro, " e a área é ", area, ".")
-Fim
+Fim.
