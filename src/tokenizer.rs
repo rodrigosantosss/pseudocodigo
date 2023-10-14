@@ -12,8 +12,14 @@ pub enum Token {
     If,        // Se
     Then,      // então
     Else,      // Senão
-    While,     // Enquanto
+    While,     // Enquanto,
+    For, // Para
+    Do, // faça, repita
+    From, // de
+    To, // até
     BreakLine,
+    OpenSquareBrackets,
+    CloseSquareBrackets,
     OpenParenthesis,
     CloseParenthesis,
     Identifier(Box<str>),
@@ -25,7 +31,7 @@ pub enum Token {
     Integer,        // inteiro
     Real,           // real
     Character,      // caractere
-    CharacterChain, // literal
+    CharacterChain, // cadeia
     Boolean,        // lógico
     True,           // verdadeiro
     False,          // falso
@@ -58,10 +64,14 @@ impl From<String> for Token {
             "então" => Self::Then,
             "Senão" => Self::Else,
             "Enquanto" => Self::While,
+            "Para" => Self::For,
+            "faça" | "Repita" => Self::Do,
+            "de" => Self::From,
+            "até" => Self::To,
             "inteiro" => Self::Integer,
             "real" => Self::Real,
             "caractere" => Self::Character,
-            "literal" => Self::CharacterChain,
+            "cadeia" => Self::CharacterChain,
             "lógico" => Self::Boolean,
             "verdadeiro" => Self::True,
             "falso" => Self::False,
@@ -82,6 +92,8 @@ impl TryFrom<char> for Token {
     fn try_from(value: char) -> Result<Token, ()> {
         match value {
             '\n' => Ok(Self::BreakLine),
+            '[' => Ok(Self::OpenSquareBrackets),
+            ']' => Ok(Self::CloseSquareBrackets),
             '(' => Ok(Self::OpenParenthesis),
             ')' => Ok(Self::CloseParenthesis),
             ':' => Ok(Self::Colon),
