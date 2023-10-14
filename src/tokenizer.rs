@@ -52,6 +52,8 @@ pub enum Token {
     Or,        // ou
     XOr,       // xor
     Not,       // não
+    Escrever,  // Escrever
+    Ler,       // Ler
 }
 
 impl From<String> for Token {
@@ -82,6 +84,8 @@ impl From<String> for Token {
             "ou" => Self::Or,
             "xor" => Self::XOr,
             "não" => Self::Not,
+            "Escrever" => Self::Escrever,
+            "Ler" => Self::Ler,
             _ => Self::Identifier(value.into_boxed_str()),
         }
     }
@@ -158,6 +162,8 @@ impl ToString for Token {
             Self::Comma => String::from(","),
             Self::Greater => String::from(">"),
             Self::Equal => String::from("="),
+            Self::Escrever => String::from("Escrever"),
+            Self::Ler => String::from("Ler"),
             Self::Identifier(str) => str.clone().into_string(),
             Self::RealLiteral(real) => real.to_string(),
             Self::IntLiteral(integer) => integer.to_string(),
