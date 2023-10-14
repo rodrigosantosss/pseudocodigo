@@ -5,10 +5,10 @@ use std::{
 
 #[derive(Debug)]
 pub enum Token {
-    Algorithm,    // Algoritmo
-    Data,         // Variáveis
-    Begin,        // Inicio
-    End,          // Fim
+    Algorithm, // Algoritmo
+    Data,      // Variáveis
+    Begin,     // Inicio
+    End,       // Fim
     Dot,
     If,           // Se
     Then,         // então
@@ -52,8 +52,8 @@ pub enum Token {
     Or,        // ou
     XOr,       // xor
     Not,       // não
-    Write,  // Escrever
-    Read,       // Ler
+    Write,     // Escrever
+    Read,      // Ler
 }
 
 impl From<String> for Token {
