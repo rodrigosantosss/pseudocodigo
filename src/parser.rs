@@ -391,6 +391,8 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                 };
             }
             let condition = parse_expression(condition, *line)?;
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
             let mut content = Vec::new();
             let last: Token;
             loop {
@@ -414,6 +416,8 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                 };
             }
             let content = parse_statements(content, line)?;
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
             let mut else_content: Option<Vec<Statement>> = None;
             if let Token::Else = last {
                 let mut else_tokens = Vec::new();
@@ -435,6 +439,50 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             statements.push(Statement::IfStatement(condition, content, else_content));
+        } else if let Token::While = token {
+            let mut condition = Vec::new();
+            loop {
+                match tokens.next() {
+                    Some(Token::Do(str)) => {
+                        if &*str == "faça" {
+                            break;
+                        } else {
+                            condition.push(Expression::Token(Token::Do(str)));
+                        }
+                    },
+                    Some(token) => condition.push(Expression::Token(token)),
+                    None => {
+                        return Err(ParseError::Expected(
+                            *line,
+                            Token::Do(Box::from("faça")).to_string(),
+                            String::from("nada"),
+                        ))
+                    }
+                };
+            }
+            let condition = parse_expression(condition, *line)?;
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
+            let mut content = Vec::new();
+            loop {
+                match tokens.next() {
+                    Some(Token::End) => break,
+                    Some(token) => content.push(token),
+                    None => {
+                        return Err(ParseError::Expected(
+                            *line,
+                            Token::End.to_string(),
+                            String::from("nada"),
+                        ))
+                    }
+                };
+            }
+            let content = parse_statements(content, line)?;
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
+            statements.push(Statement::WhileStatement(condition, content));
+        } else if let Token::BreakLine = token {
+            *line += 1;
         }
     }
 

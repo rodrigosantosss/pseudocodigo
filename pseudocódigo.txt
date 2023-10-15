@@ -1,7 +1,7 @@
 Algoritmo caracteristicas_terreno
 Variáveis
     ladoA, ladoB, perimetro, area: real
-    quociente, resto: inteiro
+    i: inteiro
 Início
     Ler(ladoA, ladoB)
     area <- ladoA * ladoB
@@ -10,6 +10,10 @@ Início
         Escrever("terreno pequeno")
     Senão
         Escrever("terreno bastante grande")
+    Fim
+    i <- 0
+    Enquanto i <= 5 faça
+        Escrever(i)
     Fim
     Escrever("O perímetro é ", perimetro, " e a área é ", area, ".")
 Fim.
