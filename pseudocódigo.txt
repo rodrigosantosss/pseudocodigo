@@ -14,6 +14,7 @@ Início
     i <- 0
     Enquanto i <= 5 faça
         Escrever(i)
+        i <- i + 1
     Fim
     Escrever("O perímetro é ", perimetro, " e a área é ", area, ".")
 Fim.

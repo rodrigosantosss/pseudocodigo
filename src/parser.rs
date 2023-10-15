@@ -483,6 +483,18 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             statements.push(Statement::WhileStatement(condition, content));
         } else if let Token::BreakLine = token {
             *line += 1;
+        } else if let Token::End = token {
+            match tokens.next().ok_or(ParseError::Expected(*line, Token::Dot.to_string(), String::from("nada")))? {
+                Token::Dot => (),
+                token => return Err(ParseError::Expected(*line, Token::Dot.to_string(), token.to_string())),
+            };
+            while let Some(token) = tokens.next() {
+                match token {
+                    Token::BreakLine => (),
+                    _ => return Err(ParseError::Other("Tokens inválidos após Fim.")),
+                }
+            }
+            break;
         }
     }
 
