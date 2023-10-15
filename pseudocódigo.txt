@@ -6,7 +6,10 @@ Início
     Ler(ladoA, ladoB)
     area <- ladoA * ladoB
     perimetro <- 2 * (ladoA + ladoB)
-    quociente <- 10 div 3
-    resto <- 10 mod 3
+    Se area < 100 Então
+        Escrever("terreno pequeno")
+    Senão
+        Escrever("terreno bastante grande")
+    Fim
     Escrever("O perímetro é ", perimetro, " e a área é ", area, ".")
 Fim.
