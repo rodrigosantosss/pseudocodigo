@@ -9,11 +9,9 @@ pub enum ParseError {
     ExpectedType(usize, String),
     Expected(usize, String, String),
     ExpectedExpression(usize, String),
-    ExpectedSomething(usize),
-    InvalidParenthesis(usize),
     ExpectedOperation(usize),
-    ExpectedArrow(usize, String),
-    ExpectedParenthesis(usize, String),
+    ExpectedToken(usize, Token, String),
+    InvalidParenthesis(usize),
     Other(&'static str),
 }
 
@@ -39,23 +37,16 @@ impl Display for ParseError {
                 f,
                 "Esperava-se {expected}, encontrou-se {found} na linha nº{line}"
             ),
+            Self::ExpectedToken(line, expected, found) => write!(
+                f,
+                "Esperava-se um {} na linha nº{line}, encontrou-se {}", expected.to_string(), found.to_string()
+            ),
             Self::ExpectedExpression(line, found) => write!(
                 f,
-                "Esperava-se expressão, eonctrou-se {found} na linha nº{line}",
+                "Esperava-se uma expressão na linha nº{line}, encontrou-se {}", found.to_string()
             ),
-            Self::ExpectedSomething(line) => write!(f, "Esperava-se algo na linha nº{line}"),
+            Self::ExpectedOperation(line) => write!(f, "Esperava-se uma operação na linha nº{line},"),
             Self::InvalidParenthesis(line) => write!(f, "Parenteses invalidos na linha nº{line}"),
-            Self::ExpectedOperation(line) => {
-                write!(f, "Esperava-se uma operação na linha nº{line}")
-            }
-            Self::ExpectedArrow(line, found) => write!(
-                f,
-                "Esperava-se '->' na linha nº{line}, encontrou-se {found}"
-            ),
-            Self::ExpectedParenthesis(line, found) => write!(
-                f,
-                "Esperava-se parenteses na linha nº{line}, encontrou-se {found}"
-            ),
             Self::Other(str) => write!(f, "{str}"),
         }
     }
@@ -125,7 +116,7 @@ pub enum Statement {
     SingleInstruction(Instruction),
     IfStatement(ExprTree, Vec<Statement>, Option<Vec<Statement>>),
     WhileStatement(ExprTree, Vec<Statement>),
-    ForStatement(Box<str>, i64, i64, i64, Vec<Statement>), // variable; start; end; step; code
+    ForStatement(Box<str>, ExprTree, ExprTree, ExprTree, Vec<Statement>), // variable; start; end; step; code
     DoWhileStatement(ExprTree, Vec<Statement>),
 }
 
@@ -299,6 +290,13 @@ macro_rules! expected_token {
             None => return Err(ParseError::$err($line, String::from("nada"))),
         }
     };
+    ($iter:ident, $token:ident, $line:expr) => {
+        match $iter.next() {
+            Some(Token::$token) => (),
+            Some(token) => return Err(ParseError::ExpectedToken($line, Token::$token, token.to_string())),
+            None => return Err(ParseError::ExpectedToken($line, Token::$token, String::from("nada"))),
+        }
+    };
 }
 
 fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statement>, ParseError> {
@@ -307,7 +305,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
 
     while let Some(token) = tokens.next() {
         if let Token::Identifier(ident) = token {
-            expected_token!(tokens, Arrow, ExpectedArrow, *line);
+            expected_token!(tokens, Arrow, *line);
             let mut expr = Vec::new();
             loop {
                 let token = tokens
@@ -325,7 +323,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             )));
             *line += 1;
         } else if let Token::Read = token {
-            expected_token!(tokens, OpenParenthesis, ExpectedParenthesis, *line);
+            expected_token!(tokens, OpenParenthesis, *line);
             let mut identifiers: Vec<Box<str>> = Vec::new();
             loop {
                 identifiers.push(match tokens.next() {
@@ -340,7 +338,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                 match tokens.peek() {
                     Some(Token::Comma) => tokens.next(),
                     _ => {
-                        expected_token!(tokens, CloseParenthesis, ExpectedParenthesis, *line);
+                        expected_token!(tokens, CloseParenthesis, *line);
                         break;
                     }
                 };
@@ -349,7 +347,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             *line += 1;
             statements.push(Statement::SingleInstruction(Instruction::Read(identifiers)));
         } else if let Token::Write = token {
-            expected_token!(tokens, OpenParenthesis, ExpectedParenthesis, *line);
+            expected_token!(tokens, OpenParenthesis, *line);
             let mut content: Vec<Token> = Vec::new();
             loop {
                 content.push(match tokens.next() {
@@ -367,7 +365,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                 match tokens.peek() {
                     Some(Token::Comma) => tokens.next(),
                     _ => {
-                        expected_token!(tokens, CloseParenthesis, ExpectedParenthesis, *line);
+                        expected_token!(tokens, CloseParenthesis, *line);
                         break;
                     }
                 };
@@ -520,6 +518,97 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             statements.push(Statement::DoWhileStatement(condition, content));
+        } else if let Token::For = token {
+            let ident = match tokens.next().ok_or(ParseError::ExpectedIdentifier(*line, String::from("nada")))? {
+                Token::Identifier(ident) => ident,
+                token => return Err(ParseError::ExpectedIdentifier(*line, token.to_string()))
+            };
+            expected_token!(tokens, From, *line);
+            let mut start_expr = Vec::new();
+            loop {
+                match tokens.next() {
+                    Some(Token::To) => break,
+                    Some(token) => start_expr.push(Expression::Token(token)),
+                    None => {
+                        return Err(ParseError::Expected(
+                            *line,
+                            Token::To.to_string(),
+                            String::from("nada"),
+                        ))
+                    }
+                };
+            }
+            let start_expr = parse_expression(start_expr, *line)?;
+            let mut end_expr = Vec::new();
+            let last: Token;
+            loop {
+                match tokens.next() {
+                    Some(Token::Step) => {
+                        last = Token::Step;
+                        break;
+                    }
+                    Some(Token::Do(str)) => {
+                        if &*str == "faça" {
+                            last = Token::Do(str);
+                            break;
+                        } else {
+                            end_expr.push(Expression::Token(Token::Do(str)));
+                        }
+                    }
+                    Some(token) => end_expr.push(Expression::Token(token)),
+                    None => {
+                        return Err(ParseError::Expected(
+                            *line,
+                            Token::Do(Box::from("faça")).to_string(),
+                            String::from("nada"),
+                        ))
+                    }
+                };
+            }
+            let end_expr = parse_expression(end_expr, *line)?;
+            let mut step_expr: Option<ExprTree> = None;
+            if let Token::Step = last {
+                let mut step_expr_vec = Vec::new();
+                loop {
+                    match tokens.next() {
+                        Some(Token::Do(str)) => {
+                            if &*str == "faça" {
+                                break;
+                            } else {
+                                step_expr_vec.push(Expression::Token(Token::Do(str)));
+                            }
+                        }
+                        Some(token) => step_expr_vec.push(Expression::Token(token)),
+                        None => {
+                            return Err(ParseError::Expected(
+                                *line,
+                                Token::Do(Box::from("faça")).to_string(),
+                                String::from("nada"),
+                            ))
+                        }
+                    };
+                }
+                step_expr = Some(parse_expression(step_expr_vec, *line)?);
+            }
+            let step_expr = step_expr.unwrap_or(ExprTree::new(Token::IntLiteral(1)));
+            let mut content = Vec::new();
+            loop {
+                match tokens.next() {
+                    Some(Token::End) => break,
+                    Some(token) => content.push(token),
+                    None => {
+                        return Err(ParseError::Expected(
+                            *line,
+                            Token::End.to_string(),
+                            String::from("nada"),
+                        ))
+                    }
+                };
+            }
+            let content = parse_statements(content, line)?;
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
+            statements.push(Statement::ForStatement(ident, start_expr, end_expr, step_expr, content));
         } else if let Token::BreakLine = token {
             *line += 1;
         } else if let Token::End = token {

@@ -11,10 +11,9 @@ Início
     Senão
         Escrever("terreno bastante grande")
     Fim
-    i <- 0
-    Repita
+    Para i de 0 até 10 passo 2 faça
         Escrever(i)
         i <- i + 1
-    Enquanto i <= 5 Fim
+    Fim
     Escrever("O perímetro é ", perimetro, " e a área é ", area, ".")
 Fim.
