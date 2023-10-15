@@ -1,4 +1,4 @@
-use crate::parser::{ExprTree, Instruction, Program, Statement, Type, Variable};
+use crate::parser::{ExprTree, Instruction, Program, Statement, Type};
 use crate::tokenizer::Token;
 use std::collections::HashMap;
 
