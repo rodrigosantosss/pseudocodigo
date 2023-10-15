@@ -292,7 +292,7 @@ fn parse_expression(expr: Vec<Expression>, line: usize) -> Result<ExprTree, Pars
 }
 
 macro_rules! expected_token {
-    ($iter:ident, $token:ident, $err:ident, $line:ident) => {
+    ($iter:ident, $token:ident, $err:ident, $line:expr) => {
         match $iter.next() {
             Some(Token::$token) => (),
             Some(token) => return Err(ParseError::$err($line, token.to_string())),
@@ -301,64 +301,118 @@ macro_rules! expected_token {
     };
 }
 
-fn parse_statement(statement: Vec<Token>, line: usize) -> Result<Statement, ParseError> {
-    let mut statement = statement.into_iter().peekable();
-    let token = statement
-        .next()
-        .ok_or(ParseError::ExpectedSomething(line))?;
-    if let Token::Identifier(ident) = token {
-        expected_token!(statement, Arrow, ExpectedArrow, line);
-        let expr: Vec<_> = statement.map(|token| Expression::Token(token)).collect();
-        Ok(Statement::SingleInstruction(Instruction::Assign(
-            ident,
-            parse_expression(expr, line)?,
-        )))
-    } else if let Token::Read = token {
-        expected_token!(statement, OpenParenthesis, ExpectedParenthesis, line);
-        let mut identifiers: Vec<Box<str>> = Vec::new();
-        loop {
-            identifiers.push(match statement.next() {
-                Some(Token::Identifier(ident)) => ident,
-                Some(token) => return Err(ParseError::ExpectedIdentifier(line, token.to_string())),
-                None => return Err(ParseError::ExpectedIdentifier(line, String::from("nada")))
-            });
+fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statement>, ParseError> {
+    let mut tokens = tokens.into_iter().peekable();
+    let mut statements = Vec::new();
 
-            match statement.peek() {
-                Some(Token::Comma) => statement.next(),
-                _ => {
-                    expected_token!(statement, CloseParenthesis, ExpectedParenthesis, line);
+    while let Some(token) = tokens.next() {
+        if let Token::Identifier(ident) = token {
+            expected_token!(tokens, Arrow, ExpectedArrow, *line);
+            let mut expr = Vec::new();
+            loop {
+                let token = tokens.next().ok_or(ParseError::ExpectedBreakLine(*line, String::from("nada")))?;
+                if let Token::BreakLine = token {
                     break;
+                } else {
+                    expr.push(Expression::Token(token));
                 }
-            };
-        }
-        Ok(Statement::SingleInstruction(Instruction::Read(identifiers)))
-    } else if let Token::Write = token {
-        expected_token!(statement, OpenParenthesis, ExpectedParenthesis, line);
-        let mut tokens: Vec<Token> = Vec::new();
-        loop {
-            tokens.push(match statement.next() {
-                Some(token) => {
-                    if token.is_value() {
-                        token
-                    } else {
-                        return Err(ParseError::ExpectedIdentifier(line, token.to_string()));
+            }
+            statements.push(Statement::SingleInstruction(Instruction::Assign(
+                ident,
+                parse_expression(expr, *line)?,
+            )));
+            *line += 1;
+        } else if let Token::Read = token {
+            expected_token!(tokens, OpenParenthesis, ExpectedParenthesis, *line);
+            let mut identifiers: Vec<Box<str>> = Vec::new();
+            loop {
+                identifiers.push(match tokens.next() {
+                    Some(Token::Identifier(ident)) => ident,
+                    Some(token) => return Err(ParseError::ExpectedIdentifier(*line, token.to_string())),
+                    None => return Err(ParseError::ExpectedIdentifier(*line, String::from("nada")))
+                });
+                match tokens.peek() {
+                    Some(Token::Comma) => tokens.next(),
+                    _ => {
+                        expected_token!(tokens, CloseParenthesis, ExpectedParenthesis, *line);
+                        break;
                     }
-                },
-                None => return Err(ParseError::ExpectedIdentifier(line, String::from("nada")))
-            });
-
-            match statement.peek() {
-                Some(Token::Comma) => statement.next(),
-                _ => {
-                    expected_token!(statement, CloseParenthesis, ExpectedParenthesis, line);
-                    break;
+                };
+            }
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
+            statements.push(Statement::SingleInstruction(Instruction::Read(identifiers)));
+        } else if let Token::Write = token {
+            expected_token!(tokens, OpenParenthesis, ExpectedParenthesis, *line);
+            let mut content: Vec<Token> = Vec::new();
+            loop {
+                content.push(match tokens.next() {
+                    Some(token) => {
+                        if token.is_value() {
+                            token
+                        } else {
+                            return Err(ParseError::ExpectedIdentifier(*line, token.to_string()));
+                        }
+                    },
+                    None => return Err(ParseError::ExpectedIdentifier(*line, String::from("nada")))
+                });
+                match tokens.peek() {
+                    Some(Token::Comma) => tokens.next(),
+                    _ => {
+                        expected_token!(tokens, CloseParenthesis, ExpectedParenthesis, *line);
+                        break;
+                    }
+                };
+            }
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
+            statements.push(Statement::SingleInstruction(Instruction::Write(content)));
+        } else if let Token::If = token {
+            let mut condition = Vec::new();
+            loop {
+                match tokens.next() {
+                    Some(Token::Then) => break,
+                    Some(token) => condition.push(Expression::Token(token)),
+                    None => return Err(ParseError::Expected(*line, Token::Then.to_string(), String::from("nada")))
+                };
+            }
+            let condition = parse_expression(condition, *line)?;
+            let mut content = Vec::new();
+            let last: Token;
+            loop {
+                match tokens.next() {
+                    Some(Token::End) => {
+                        last = Token::End;
+                        break;
+                    }
+                    Some(Token::Else) => {
+                        last = Token::Else;
+                        break;
+                    }
+                    Some(token) => content.push(token),
+                    None => return Err(ParseError::Expected(*line, Token::Then.to_string(), String::from("nada")))
+                };
+            }
+            let content = parse_statements(content, line)?;
+            let mut else_content: Option<Vec<Statement>> = None;
+            if let Token::Else = last {
+                let mut else_tokens = Vec::new();
+                loop {
+                    match tokens.next() {
+                        Some(Token::End) => break,
+                        Some(token) => else_tokens.push(token),
+                        None => return Err(ParseError::Expected(*line, Token::Then.to_string(), String::from("nada")))
+                    };
                 }
-            };
+                else_content = Some(parse_statements(else_tokens, line)?);
+            }
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
+            statements.push(Statement::IfStatement(condition, content, else_content));
         }
-        Ok(Statement::SingleInstruction(Instruction::Write(tokens)))
-    } else {
-        todo!()
     }
+
+    Ok(statements)
 }
 
 pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseError> {
@@ -474,26 +528,10 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseError> {
     }
 
     expected_token!(iterator, BreakLine, ExpectedBreakLine, line);
+    line += 1;
 
-    loop {
-        let token = match iterator.next() {
-            Some(Token::End) => match iterator.next() {
-                Some(Token::Dot) => return Ok(program),
-                _ => return Err(ParseError::Other("Esperava-se um ponto após o último Fim.")),
-            },
-            Some(token) => token,
-            None => return Err(ParseError::Other("Estrutura de programa inválida.")),
-        };
-
-        let mut statement = Vec::new();
-        statement.push(token);
-        while let Some(token) = iterator.next() {
-            if let Token::BreakLine = token {
-                break;
-            }
-            statement.push(token);
-        }
-        program.statements.push(parse_statement(statement, line)?);
-        line += 1;
-    }
+    let mut tokens = Vec::new();
+    tokens.extend(iterator);
+    program.statements = parse_statements(tokens, &mut line)?;
+    Ok(program)
 }
