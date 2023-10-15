@@ -1,5 +1,3 @@
-use std::num::IntErrorKind;
-
 mod parser;
 mod tokenizer;
 
