@@ -481,6 +481,45 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             statements.push(Statement::WhileStatement(condition, content));
+        } else if let Token::Do(str) = token {
+            if &*str != "Repita" {
+                return Err(ParseError::Other("Faça mal posicionado."));
+            }
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
+            let mut content = Vec::new();
+            loop {
+                match tokens.next() {
+                    Some(Token::While) => break,
+                    Some(token) => content.push(token),
+                    None => {
+                        return Err(ParseError::Expected(
+                            *line,
+                            Token::While.to_string(),
+                            String::from("nada"),
+                        ))
+                    }
+                };
+            }
+            let content = parse_statements(content, line)?;
+            let mut condition = Vec::new();
+            loop {
+                match tokens.next() {
+                    Some(Token::End) => break,
+                    Some(token) => condition.push(Expression::Token(token)),
+                    None => {
+                        return Err(ParseError::Expected(
+                            *line,
+                            Token::End.to_string(),
+                            String::from("nada"),
+                        ))
+                    }
+                };
+            }
+            let condition = parse_expression(condition, *line)?;
+            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
+            *line += 1;
+            statements.push(Statement::DoWhileStatement(condition, content));
         } else if let Token::BreakLine = token {
             *line += 1;
         } else if let Token::End = token {
