@@ -18,6 +18,7 @@ pub enum Token {
     Do(Box<str>), // faça, repita
     From,         // de
     To,           // até
+    Step,         // passo
     BreakLine,
     OpenParenthesis,
     CloseParenthesis,
@@ -71,6 +72,7 @@ impl From<String> for Token {
             "faça" | "Repita" => Self::Do(value.into_boxed_str()),
             "de" => Self::From,
             "até" => Self::To,
+            "passo" => Self::Step,
             "inteiro" => Self::Integer,
             "real" => Self::Real,
             "caractere" => Self::Character,
@@ -129,6 +131,7 @@ impl ToString for Token {
             Self::Do(str) => str.clone().into_string(),
             Self::From => String::from("de"),
             Self::To => String::from("até"),
+            Self::Step => String::from("passo"),
             Self::Integer => String::from("inteiro"),
             Self::Real => String::from("real"),
             Self::Character => String::from("caractere"),
