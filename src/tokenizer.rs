@@ -64,7 +64,7 @@ impl From<String> for Token {
             "Início" => Self::Begin,
             "Fim" => Self::End,
             "Se" => Self::If,
-            "então" => Self::Then,
+            "Então" => Self::Then,
             "Senão" => Self::Else,
             "Enquanto" => Self::While,
             "Para" => Self::For,
