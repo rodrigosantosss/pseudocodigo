@@ -1,3 +1,4 @@
+mod interpreter;
 mod parser;
 mod tokenizer;
 
@@ -13,7 +14,8 @@ fn main() {
                 eprintln!("Erro: Falta o ficheiro de saída depois do -o.");
                 std::process::exit(1);
             }));
-        } if arg.as_str() == "-i" {
+        }
+        if arg.as_str() == "-i" {
             interpret = true;
         } else if let Some(_) = input_file {
             eprintln!("Erro: O compilador só aceita um ficheiro de entrada.");
@@ -48,5 +50,11 @@ fn main() {
         std::process::exit(1);
     });
 
-    dbg!(output_file, interpret, program);
+    if interpret && output_file.is_some() {
+        interpreter::interpret(program.clone());
+    } else if interpret {
+        interpreter::interpret(program);
+    } else {
+        dbg!(output_file);
+    }
 }

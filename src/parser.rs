@@ -39,20 +39,25 @@ impl Display for ParseError {
             ),
             Self::ExpectedToken(line, expected, found) => write!(
                 f,
-                "Esperava-se um {} na linha nº{line}, encontrou-se {}", expected.to_string(), found.to_string()
+                "Esperava-se um {} na linha nº{line}, encontrou-se {}",
+                expected.to_string(),
+                found.to_string()
             ),
             Self::ExpectedExpression(line, found) => write!(
                 f,
-                "Esperava-se uma expressão na linha nº{line}, encontrou-se {}", found.to_string()
+                "Esperava-se uma expressão na linha nº{line}, encontrou-se {}",
+                found.to_string()
             ),
-            Self::ExpectedOperation(line) => write!(f, "Esperava-se uma operação na linha nº{line},"),
+            Self::ExpectedOperation(line) => {
+                write!(f, "Esperava-se uma operação na linha nº{line},")
+            }
             Self::InvalidParenthesis(line) => write!(f, "Parenteses invalidos na linha nº{line}"),
             Self::Other(str) => write!(f, "{str}"),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExprTree {
     pub token: Token,
     pub left: Option<Box<ExprTree>>,
@@ -98,20 +103,20 @@ impl Type {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub offset: usize,
     pub var_type: Type,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     Assign(Box<str>, ExprTree),
     Read(Vec<Box<str>>),
     Write(Vec<Token>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     SingleInstruction(Instruction),
     IfStatement(ExprTree, Vec<Statement>, Option<Vec<Statement>>),
@@ -120,11 +125,11 @@ pub enum Statement {
     DoWhileStatement(ExprTree, Vec<Statement>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Program {
-    stack_size: usize,
-    variables: HashMap<Box<str>, Variable>,
-    statements: Vec<Statement>,
+    pub stack_size: usize,
+    pub variables: HashMap<Box<str>, Variable>,
+    pub statements: Vec<Statement>,
 }
 
 pub enum Expression {
@@ -293,8 +298,20 @@ macro_rules! expected_token {
     ($iter:ident, $token:ident, $line:expr) => {
         match $iter.next() {
             Some(Token::$token) => (),
-            Some(token) => return Err(ParseError::ExpectedToken($line, Token::$token, token.to_string())),
-            None => return Err(ParseError::ExpectedToken($line, Token::$token, String::from("nada"))),
+            Some(token) => {
+                return Err(ParseError::ExpectedToken(
+                    $line,
+                    Token::$token,
+                    token.to_string(),
+                ))
+            }
+            None => {
+                return Err(ParseError::ExpectedToken(
+                    $line,
+                    Token::$token,
+                    String::from("nada"),
+                ))
+            }
         }
     };
 }
@@ -447,7 +464,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                         } else {
                             condition.push(Expression::Token(Token::Do(str)));
                         }
-                    },
+                    }
                     Some(token) => condition.push(Expression::Token(token)),
                     None => {
                         return Err(ParseError::Expected(
@@ -519,9 +536,12 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             *line += 1;
             statements.push(Statement::DoWhileStatement(condition, content));
         } else if let Token::For = token {
-            let ident = match tokens.next().ok_or(ParseError::ExpectedIdentifier(*line, String::from("nada")))? {
+            let ident = match tokens
+                .next()
+                .ok_or(ParseError::ExpectedIdentifier(*line, String::from("nada")))?
+            {
                 Token::Identifier(ident) => ident,
-                token => return Err(ParseError::ExpectedIdentifier(*line, token.to_string()))
+                token => return Err(ParseError::ExpectedIdentifier(*line, token.to_string())),
             };
             expected_token!(tokens, From, *line);
             let mut start_expr = Vec::new();
@@ -608,13 +628,25 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             let content = parse_statements(content, line)?;
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
-            statements.push(Statement::ForStatement(ident, start_expr, end_expr, step_expr, content));
+            statements.push(Statement::ForStatement(
+                ident, start_expr, end_expr, step_expr, content,
+            ));
         } else if let Token::BreakLine = token {
             *line += 1;
         } else if let Token::End = token {
-            match tokens.next().ok_or(ParseError::Expected(*line, Token::Dot.to_string(), String::from("nada")))? {
+            match tokens.next().ok_or(ParseError::Expected(
+                *line,
+                Token::Dot.to_string(),
+                String::from("nada"),
+            ))? {
                 Token::Dot => (),
-                token => return Err(ParseError::Expected(*line, Token::Dot.to_string(), token.to_string())),
+                token => {
+                    return Err(ParseError::Expected(
+                        *line,
+                        Token::Dot.to_string(),
+                        token.to_string(),
+                    ))
+                }
             };
             while let Some(token) = tokens.next() {
                 match token {
