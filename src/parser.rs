@@ -310,7 +310,9 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, Arrow, ExpectedArrow, *line);
             let mut expr = Vec::new();
             loop {
-                let token = tokens.next().ok_or(ParseError::ExpectedBreakLine(*line, String::from("nada")))?;
+                let token = tokens
+                    .next()
+                    .ok_or(ParseError::ExpectedBreakLine(*line, String::from("nada")))?;
                 if let Token::BreakLine = token {
                     break;
                 } else {
@@ -328,8 +330,12 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             loop {
                 identifiers.push(match tokens.next() {
                     Some(Token::Identifier(ident)) => ident,
-                    Some(token) => return Err(ParseError::ExpectedIdentifier(*line, token.to_string())),
-                    None => return Err(ParseError::ExpectedIdentifier(*line, String::from("nada")))
+                    Some(token) => {
+                        return Err(ParseError::ExpectedIdentifier(*line, token.to_string()))
+                    }
+                    None => {
+                        return Err(ParseError::ExpectedIdentifier(*line, String::from("nada")))
+                    }
                 });
                 match tokens.peek() {
                     Some(Token::Comma) => tokens.next(),
@@ -353,8 +359,10 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                         } else {
                             return Err(ParseError::ExpectedIdentifier(*line, token.to_string()));
                         }
-                    },
-                    None => return Err(ParseError::ExpectedIdentifier(*line, String::from("nada")))
+                    }
+                    None => {
+                        return Err(ParseError::ExpectedIdentifier(*line, String::from("nada")))
+                    }
                 });
                 match tokens.peek() {
                     Some(Token::Comma) => tokens.next(),
@@ -373,7 +381,13 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                 match tokens.next() {
                     Some(Token::Then) => break,
                     Some(token) => condition.push(Expression::Token(token)),
-                    None => return Err(ParseError::Expected(*line, Token::Then.to_string(), String::from("nada")))
+                    None => {
+                        return Err(ParseError::Expected(
+                            *line,
+                            Token::Then.to_string(),
+                            String::from("nada"),
+                        ))
+                    }
                 };
             }
             let condition = parse_expression(condition, *line)?;
@@ -390,7 +404,13 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                         break;
                     }
                     Some(token) => content.push(token),
-                    None => return Err(ParseError::Expected(*line, Token::Then.to_string(), String::from("nada")))
+                    None => {
+                        return Err(ParseError::Expected(
+                            *line,
+                            Token::Then.to_string(),
+                            String::from("nada"),
+                        ))
+                    }
                 };
             }
             let content = parse_statements(content, line)?;
@@ -401,7 +421,13 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                     match tokens.next() {
                         Some(Token::End) => break,
                         Some(token) => else_tokens.push(token),
-                        None => return Err(ParseError::Expected(*line, Token::Then.to_string(), String::from("nada")))
+                        None => {
+                            return Err(ParseError::Expected(
+                                *line,
+                                Token::Then.to_string(),
+                                String::from("nada"),
+                            ))
+                        }
                     };
                 }
                 else_content = Some(parse_statements(else_tokens, line)?);
