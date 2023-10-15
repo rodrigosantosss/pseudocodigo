@@ -2,6 +2,7 @@ use crate::parser::{ExprTree, Instruction, Program, Statement, Type, Variable};
 use crate::tokenizer::Token;
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub enum InterVar {
     Integer(i64),
     Real(f64),
@@ -24,6 +25,7 @@ impl ToString for InterVar {
 
 fn evaluate_expression(expr: ExprTree, variables: &mut HashMap<Box<str>, InterVar>) -> InterVar {
     match expr.token {
+        Token::Identifier(ident) => variables.get(&ident).unwrap().clone(),
         _ => panic!()
     }
 }
