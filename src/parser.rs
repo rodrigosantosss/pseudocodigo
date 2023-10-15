@@ -54,9 +54,9 @@ impl Display for ParseError {
 
 #[derive(Debug)]
 pub struct ExprTree {
-    token: Token,
-    left: Option<Box<ExprTree>>,
-    right: Option<Box<ExprTree>>,
+    pub token: Token,
+    pub left: Option<Box<ExprTree>>,
+    pub right: Option<Box<ExprTree>>,
 }
 
 impl ExprTree {
@@ -100,8 +100,8 @@ impl Type {
 
 #[derive(Debug)]
 pub struct Variable {
-    offset: usize,
-    var_type: Type,
+    pub offset: usize,
+    pub var_type: Type,
 }
 
 #[derive(Debug)]
