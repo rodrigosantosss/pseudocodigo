@@ -1,11 +1,12 @@
 use crate::parser::{ExprTree, Instruction, Program, Statement, Type};
 use crate::tokenizer::Token;
+use std::ops::Rem;
 use std::{
     collections::HashMap, ops::Add, ops::BitAnd, ops::BitOr, ops::BitXor, ops::Div, ops::Mul,
     ops::Not, ops::Sub,
 };
 
-#[derive(Clone, PartialEq, PartialOrd)]
+#[derive(Clone)]
 enum InterValue {
     Integer(i64),
     Real(f64),
@@ -58,6 +59,18 @@ impl InterValue {
                 self.to_integer()
                     .pow(rhs.to_integer().try_into().expect("Overflow")),
             )
+        }
+    }
+
+    fn idiv(self, rhs: Self) -> (Self, Self) {
+        if matches!(self, Self::Real(_)) || matches!(rhs, Self::Real(_)) {
+            let x = self.to_real();
+            let y = self.to_real();
+            (Self::Integer((x / y).floor() as i64), Self::Real(x.rem(y)))
+        } else {
+            let x = self.to_integer();
+            let y = self.to_integer();
+            (Self::Integer(x / y), Self::Integer(x % y))
         }
     }
 }
@@ -153,6 +166,26 @@ impl Not for InterValue {
     }
 }
 
+impl PartialEq for InterValue {
+    fn eq(&self, other: &Self) -> bool {
+        if matches!(self, Self::Real(_)) && matches!(other, Self::Real(_)) {
+            self.to_real() == other.to_real()
+        } else {
+            self.to_integer() == other.to_integer()
+        }
+    }
+}
+
+impl PartialOrd for InterValue {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if matches!(self, Self::Real(_)) && matches!(other, Self::Real(_)) {
+            self.to_real().partial_cmp(&other.to_real())
+        } else {
+            self.to_integer().partial_cmp(&other.to_integer())
+        }
+    }
+}
+
 impl ToString for InterValue {
     fn to_string(&self) -> String {
         match self {
@@ -179,6 +212,68 @@ fn evaluate_expression(
         Token::Pow => evaluate_expression(*expr.left.unwrap(), variables)
             .pow(evaluate_expression(*expr.right.unwrap(), variables)),
         Token::Not => !evaluate_expression(*expr.left.unwrap(), variables),
+        Token::Mul => {
+            evaluate_expression(*expr.left.unwrap(), variables)
+                * evaluate_expression(*expr.right.unwrap(), variables)
+        }
+        Token::Div => {
+            evaluate_expression(*expr.left.unwrap(), variables)
+                / evaluate_expression(*expr.right.unwrap(), variables)
+        }
+        Token::IDiv => {
+            evaluate_expression(*expr.left.unwrap(), variables)
+                .idiv(evaluate_expression(*expr.right.unwrap(), variables))
+                .0
+        }
+        Token::Mod => {
+            evaluate_expression(*expr.left.unwrap(), variables)
+                .idiv(evaluate_expression(*expr.right.unwrap(), variables))
+                .1
+        }
+        Token::Plus => {
+            evaluate_expression(*expr.left.unwrap(), variables)
+                + evaluate_expression(*expr.right.unwrap(), variables)
+        }
+        Token::Minus => {
+            evaluate_expression(*expr.left.unwrap(), variables)
+                - evaluate_expression(*expr.right.unwrap(), variables)
+        }
+        Token::Less => InterValue::Boolean(
+            evaluate_expression(*expr.left.unwrap(), variables)
+                < evaluate_expression(*expr.right.unwrap(), variables),
+        ),
+        Token::Greater => InterValue::Boolean(
+            evaluate_expression(*expr.left.unwrap(), variables)
+                > evaluate_expression(*expr.right.unwrap(), variables),
+        ),
+        Token::LessOrEqual => InterValue::Boolean(
+            evaluate_expression(*expr.left.unwrap(), variables)
+                <= evaluate_expression(*expr.right.unwrap(), variables),
+        ),
+        Token::GreaterOrEqual => InterValue::Boolean(
+            evaluate_expression(*expr.left.unwrap(), variables)
+                >= evaluate_expression(*expr.right.unwrap(), variables),
+        ),
+        Token::Equal => InterValue::Boolean(
+            evaluate_expression(*expr.left.unwrap(), variables)
+                == evaluate_expression(*expr.right.unwrap(), variables),
+        ),
+        Token::Different => InterValue::Boolean(
+            evaluate_expression(*expr.left.unwrap(), variables)
+                != evaluate_expression(*expr.right.unwrap(), variables),
+        ),
+        Token::And => {
+            evaluate_expression(*expr.left.unwrap(), variables)
+                & evaluate_expression(*expr.right.unwrap(), variables)
+        }
+        Token::Or => {
+            evaluate_expression(*expr.left.unwrap(), variables)
+                | evaluate_expression(*expr.right.unwrap(), variables)
+        }
+        Token::XOr => {
+            evaluate_expression(*expr.left.unwrap(), variables)
+                ^ evaluate_expression(*expr.right.unwrap(), variables)
+        }
         _ => panic!(),
     }
 }
