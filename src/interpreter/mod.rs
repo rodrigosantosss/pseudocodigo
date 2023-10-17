@@ -45,7 +45,7 @@ impl InterValue {
         }
     }
 
-    fn pow(&self, rhs: &Self) -> Self {
+    fn pow(self, rhs: Self) -> Self {
         if matches!(self, Self::Real(_)) || matches!(rhs, Self::Real(_)) {
             Self::Real(self.to_real().powf(rhs.to_real()))
         } else if rhs.to_integer() < 0 {
@@ -62,93 +62,93 @@ impl InterValue {
     }
 }
 
-impl Mul for &InterValue {
-    type Output = InterValue;
+impl Mul for InterValue {
+    type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        if matches!(self, InterValue::Real(_)) || matches!(rhs, InterValue::Real(_)) {
-            InterValue::Real(self.to_real() * rhs.to_real())
+        if matches!(self, Self::Real(_)) || matches!(rhs, Self::Real(_)) {
+            Self::Real(self.to_real() * rhs.to_real())
         } else {
-            InterValue::Integer(self.to_integer() * rhs.to_integer())
+            Self::Integer(self.to_integer() * rhs.to_integer())
         }
     }
 }
 
-impl Div for &InterValue {
-    type Output = InterValue;
+impl Div for InterValue {
+    type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        InterValue::Real(self.to_real() / rhs.to_real())
+        Self::Real(self.to_real() / rhs.to_real())
     }
 }
 
-impl Add for &InterValue {
-    type Output = InterValue;
+impl Add for InterValue {
+    type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        if matches!(self, InterValue::Real(_)) || matches!(rhs, InterValue::Real(_)) {
-            InterValue::Real(self.to_real() + rhs.to_real())
+        if matches!(self, Self::Real(_)) || matches!(rhs, Self::Real(_)) {
+            Self::Real(self.to_real() + rhs.to_real())
         } else {
-            InterValue::Integer(self.to_integer() + rhs.to_integer())
+            Self::Integer(self.to_integer() + rhs.to_integer())
         }
     }
 }
 
-impl Sub for &InterValue {
-    type Output = InterValue;
+impl Sub for InterValue {
+    type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        if matches!(self, InterValue::Real(_)) || matches!(rhs, InterValue::Real(_)) {
-            InterValue::Real(self.to_real() - rhs.to_real())
+        if matches!(self, Self::Real(_)) || matches!(rhs, Self::Real(_)) {
+            Self::Real(self.to_real() - rhs.to_real())
         } else {
-            InterValue::Integer(self.to_integer() - rhs.to_integer())
+            Self::Integer(self.to_integer() - rhs.to_integer())
         }
     }
 }
 
-impl BitAnd for &InterValue {
-    type Output = InterValue;
+impl BitAnd for InterValue {
+    type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
-        if matches!(self, InterValue::Boolean(_)) && matches!(rhs, InterValue::Boolean(_)) {
-            InterValue::Boolean(self.to_boolean() && rhs.to_boolean())
+        if matches!(self, Self::Boolean(_)) && matches!(rhs, Self::Boolean(_)) {
+            Self::Boolean(self.to_boolean() && rhs.to_boolean())
         } else {
-            InterValue::Integer(self.to_integer() & rhs.to_integer())
+            Self::Integer(self.to_integer() & rhs.to_integer())
         }
     }
 }
 
-impl BitOr for &InterValue {
-    type Output = InterValue;
+impl BitOr for InterValue {
+    type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
-        if matches!(self, InterValue::Boolean(_)) && matches!(rhs, InterValue::Boolean(_)) {
-            InterValue::Boolean(self.to_boolean() || rhs.to_boolean())
+        if matches!(self, Self::Boolean(_)) && matches!(rhs, Self::Boolean(_)) {
+            Self::Boolean(self.to_boolean() || rhs.to_boolean())
         } else {
-            InterValue::Integer(self.to_integer() | rhs.to_integer())
+            Self::Integer(self.to_integer() | rhs.to_integer())
         }
     }
 }
 
-impl BitXor for &InterValue {
-    type Output = InterValue;
+impl BitXor for InterValue {
+    type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
-        if matches!(self, InterValue::Boolean(_)) && matches!(rhs, InterValue::Boolean(_)) {
-            InterValue::Boolean(self.to_boolean() ^ rhs.to_boolean())
+        if matches!(self, Self::Boolean(_)) && matches!(rhs, Self::Boolean(_)) {
+            Self::Boolean(self.to_boolean() ^ rhs.to_boolean())
         } else {
-            InterValue::Integer(self.to_integer() ^ rhs.to_integer())
+            Self::Integer(self.to_integer() ^ rhs.to_integer())
         }
     }
 }
 
-impl Not for &InterValue {
-    type Output = InterValue;
+impl Not for InterValue {
+    type Output = Self;
 
     fn not(self) -> Self::Output {
         match self {
-            InterValue::Boolean(b) => InterValue::Boolean(!*b),
-            _ => InterValue::Integer(!self.to_integer()),
+            Self::Boolean(b) => Self::Boolean(!b),
+            _ => Self::Integer(!self.to_integer()),
         }
     }
 }
@@ -177,8 +177,8 @@ fn evaluate_expression(
         Token::True => InterValue::Boolean(true),
         Token::False => InterValue::Boolean(false),
         Token::Pow => evaluate_expression(*expr.left.unwrap(), variables)
-            .pow(&evaluate_expression(*expr.right.unwrap(), variables)),
-        Token::Not => !&evaluate_expression(*expr.left.unwrap(), variables),
+            .pow(evaluate_expression(*expr.right.unwrap(), variables)),
+        Token::Not => !evaluate_expression(*expr.left.unwrap(), variables),
         _ => panic!(),
     }
 }
