@@ -1,0 +1,7 @@
+Algoritmo teste
+Variáveis
+    i: inteiro
+Início
+    i <- 5 ^ 4
+    Escrever(i)
+Fim.

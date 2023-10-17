@@ -1,6 +1,9 @@
 use crate::parser::{ExprTree, Instruction, Program, Statement, Type};
 use crate::tokenizer::Token;
-use std::{collections::HashMap, ops::Add, ops::Div, ops::Mul, ops::Sub, ops::BitAnd, ops::BitOr, ops::BitXor, ops::Not};
+use std::{
+    collections::HashMap, ops::Add, ops::BitAnd, ops::BitOr, ops::BitXor, ops::Div, ops::Mul,
+    ops::Not, ops::Sub,
+};
 
 #[derive(Clone, PartialEq, PartialOrd)]
 enum InterValue {
@@ -168,6 +171,14 @@ fn evaluate_expression(
 ) -> InterValue {
     match expr.token {
         Token::Identifier(ident) => variables.get(&ident).unwrap().clone(),
+        Token::IntLiteral(x) => InterValue::Integer(x),
+        Token::RealLiteral(x) => InterValue::Real(x),
+        Token::StringLiteral(x, _) => InterValue::CharacterChain(x),
+        Token::True => InterValue::Boolean(true),
+        Token::False => InterValue::Boolean(false),
+        Token::Pow => evaluate_expression(*expr.left.unwrap(), variables)
+            .pow(&evaluate_expression(*expr.right.unwrap(), variables)),
+        Token::Not => !&evaluate_expression(*expr.left.unwrap(), variables),
         _ => panic!(),
     }
 }
