@@ -442,38 +442,31 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             *line += 1;
             let mut content = Vec::new();
             let last: Token;
-            let mut end_count = 0usize;
-            let mut complex_stmt_count = 0usize;
+            let mut end_if_count = 0usize;
+            let mut if_stmt_count = 0usize;
             loop {
                 match tokens.next() {
-                    Some(Token::End) => {
-                        end_count += 1;
-                        if end_count > complex_stmt_count {
-                            last = Token::End;
+                    Some(Token::EndIf) => {
+                        end_if_count += 1;
+                        if end_if_count > if_stmt_count {
+                            last = Token::EndIf;
                             break;
-                        } else {
-                            content.push(Token::End);
                         }
+                        content.push(Token::EndIf);
                     }
                     Some(Token::Else) => {
                         last = Token::Else;
                         break;
                     }
-                    Some(token) if matches!(token, Token::While | Token::If | Token::For | Token::Do(_)) => {
-                        if let Token::Do(str) = &token {
-                            if &**str == "Repita" {
-                                complex_stmt_count += 1;
-                            }
-                        } else {
-                            complex_stmt_count += 1;
-                        }
-                        content.push(token);
+                    Some(Token::If) => {
+                        if_stmt_count += 1;
+                        content.push(Token::If);
                     }
                     Some(token) => content.push(token),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
-                            Token::End.to_string(),
+                            Token::EndIf.to_string(),
                             String::from("nada"),
                         ))
                     }
@@ -483,16 +476,28 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             let mut else_content: Option<Vec<Statement>> = None;
+            end_if_count = 0usize;
+            if_stmt_count = 0usize;
             if let Token::Else = last {
                 let mut else_tokens = Vec::new();
                 loop {
                     match tokens.next() {
-                        Some(Token::End) => break,
+                        Some(Token::EndIf) => {
+                            end_if_count += 1;
+                            if end_if_count > if_stmt_count {
+                                break;
+                            }
+                            else_tokens.push(Token::EndIf);
+                        }
+                        Some(Token::If) => {
+                            if_stmt_count += 1;
+                            else_tokens.push(Token::If);
+                        }
                         Some(token) => else_tokens.push(token),
                         None => {
                             return Err(ParseError::Expected(
                                 *line,
-                                Token::Then.to_string(),
+                                Token::EndIf.to_string(),
                                 String::from("nada"),
                             ))
                         }
@@ -510,9 +515,8 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                     Some(Token::Do(str)) => {
                         if &*str == "faça" {
                             break;
-                        } else {
-                            condition.push(Expression::Token(Token::Do(str)));
                         }
+                        condition.push(Expression::Token(Token::Do(str)));
                     }
                     Some(token) => condition.push(Expression::Token(token)),
                     None => {
@@ -528,33 +532,31 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             let mut content = Vec::new();
-            let mut end_count = 0usize;
-            let mut complex_stmt_count = 0usize;
+            let mut end_while_count = 0usize;
+            let mut while_stmt_count = 0usize;
             loop {
                 match tokens.next() {
-                    Some(Token::End) => {
-                        end_count += 1;
-                        if end_count > complex_stmt_count {
+                    Some(Token::EndWhile) => {
+                        end_while_count += 1;
+                        if end_while_count > while_stmt_count {
                             break;
-                        } else {
-                            content.push(Token::End);
                         }
-                    },
-                    Some(token) if matches!(token, Token::While | Token::If | Token::For | Token::Do(_)) => {
-                        if let Token::Do(str) = &token {
-                            if &**str == "Repita" {
-                                complex_stmt_count += 1;
-                            }
-                        } else {
-                            complex_stmt_count += 1;
+                        content.push(Token::EndWhile);
+                    }
+                    Some(Token::Do(str)) => {
+                        if &*str == "Repita" {
+                            while_stmt_count += 1;
                         }
-                        content.push(token);
+                    }
+                    Some(Token::While) => {
+                        while_stmt_count += 1;
+                        content.push(Token::While);
                     }
                     Some(token) => content.push(token),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
-                            Token::End.to_string(),
+                            Token::EndWhile.to_string(),
                             String::from("nada"),
                         ))
                     }
@@ -571,9 +573,21 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             let mut content = Vec::new();
+            let mut end_while_count = 0usize;
+            let mut while_stmt_count = 0usize;
             loop {
                 match tokens.next() {
-                    Some(Token::While) => break,
+                    Some(Token::EndWhile) => {
+                        end_while_count += 1;
+                        content.push(Token::EndWhile);
+                    }
+                    Some(Token::While) => {
+                        while_stmt_count += 1;
+                        if while_stmt_count > end_while_count  {
+                            break;
+                        }
+                        content.push(Token::While);
+                    }
                     Some(token) => content.push(token),
                     None => {
                         return Err(ParseError::Expected(
@@ -680,14 +694,26 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             }
             let step_expr = step_expr.unwrap_or(ExprTree::new(Token::IntLiteral(1)));
             let mut content = Vec::new();
+            let mut end_for_count = 0usize;
+            let mut for_stmt_count = 0usize;
             loop {
                 match tokens.next() {
-                    Some(Token::End) => break,
+                    Some(Token::EndFor) => {
+                        end_for_count += 1;
+                        if end_for_count > for_stmt_count {
+                            break;
+                        }
+                        content.push(Token::EndFor);
+                    }
+                    Some(Token::For) => {
+                        for_stmt_count += 1;
+                        content.push(Token::For);
+                    }
                     Some(token) => content.push(token),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
-                            Token::End.to_string(),
+                            Token::EndFor.to_string(),
                             String::from("nada"),
                         ))
                     }

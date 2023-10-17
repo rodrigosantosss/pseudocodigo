@@ -17,6 +17,10 @@ pub enum Token {
     While,        // Enquanto,
     For,          // Para
     Do(Box<str>), // faça, repita
+    EndIf,
+    EndWhile,
+    EndFor,
+    EndDo,
     From,         // de
     To,           // até
     Step,         // passo
@@ -71,6 +75,10 @@ impl From<String> for Token {
             "Enquanto" => Self::While,
             "Para" => Self::For,
             "faça" | "Repita" => Self::Do(value.into_boxed_str()),
+            "FimSe" => Self::EndIf,
+            "FimEnquanto" => Self::EndWhile,
+            "FimPara" => Self::EndFor,
+            "FimRepita" => Self::EndDo,
             "de" => Self::From,
             "até" => Self::To,
             "passo" => Self::Step,
@@ -130,6 +138,10 @@ impl ToString for Token {
             Self::While => String::from("Enquanto"),
             Self::For => String::from("Para"),
             Self::Do(str) => str.clone().into_string(),
+            Self::EndIf => String::from("FimSe"),
+            Self::EndWhile => String::from("FimEnquanto"),
+            Self::EndFor => String::from("FimPara"),
+            Self::EndDo => String::from("FimRepita"),
             Self::From => String::from("de"),
             Self::To => String::from("até"),
             Self::Step => String::from("passo"),

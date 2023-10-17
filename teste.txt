@@ -15,12 +15,12 @@ Início
             Se ganho > ganho_max Então
                 ganho_max <- ganho
                 loja_max <- i
-            Fim
+            FimSe
             Escrever('Ganhos da loja nº', i, ': ', ganho, '€')
             soma <- soma + ganho
             i <- i + 1
-        Fim
-    Fim
+        FimSe
+    FimEnquanto
     Escrever('A loja que ganhou mais foi a nº', loja_max)
     Escrever('O total de ganhos das cinco lojas foi ', soma, '€')
 Fim.
