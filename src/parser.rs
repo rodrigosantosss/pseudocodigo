@@ -237,10 +237,49 @@ macro_rules! parse_operation {
     };
 }
 
+macro_rules! parse_unary_operation {
+    ($iter:ident, $buffer:ident, $line:ident, $op:ident $(, $other_op:ident)*) => {
+        while let Some(expr) = next_expression!($iter, $line) {
+            match expr {
+                Expression::Token(Token::$op $(| Token::$other_op)*) => {
+                    let operation = expr.unwrap_token();
+                    let last = match $buffer.pop() {
+                        Some(Expression::Token(token)) => {
+                            if token.is_value() {
+                                Expression::Token(token)
+                            } else {
+                                return Err(ParseError::ExpectedExpression($line, token.to_string()));
+                            }
+                        }
+                        Some(expr) => expr,
+                        None => {
+                            if let Token::Plus | Token::Minus = operation {
+                                Expression::Token(Token::IntLiteral(0))
+                            }
+                            else {
+                                return Err(ParseError::ExpectedExpression($line, String::from("nada")))
+                            }
+                        }
+                    };
+                    $buffer.push(Expression::Tree(ExprTree {
+                        token: operation,
+                        left: match last {
+                            Expression::Token(lit) => Some(Box::new(ExprTree::new(lit))),
+                            Expression::Tree(tree) => Some(Box::new(tree)),
+                        },
+                        right: None,
+                    }));
+                },
+                _ => $buffer.push(expr),
+            }
+        }
+    };
+}
+
 fn parse_expression(expr: Vec<Expression>, line: usize) -> Result<ExprTree, ParseError> {
     let mut expr = expr.into_iter();
     let mut buffer: Vec<Expression> = Vec::new();
-    parse_operation!(expr, buffer, line, Not);
+    parse_unary_operation!(expr, buffer, line, Not);
     expr = buffer.into_iter();
     buffer = Vec::new();
     parse_operation!(expr, buffer, line, Pow);
