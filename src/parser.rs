@@ -243,7 +243,7 @@ macro_rules! parse_unary_operation {
             match expr {
                 Expression::Token(Token::$op $(| Token::$other_op)*) => {
                     let operation = expr.unwrap_token();
-                    let last = match $buffer.pop() {
+                    let next = match next_expression!($iter, $line) {
                         Some(Expression::Token(token)) => {
                             if token.is_value() {
                                 Expression::Token(token)
@@ -252,22 +252,15 @@ macro_rules! parse_unary_operation {
                             }
                         }
                         Some(expr) => expr,
-                        None => {
-                            if let Token::Plus | Token::Minus = operation {
-                                Expression::Token(Token::IntLiteral(0))
-                            }
-                            else {
-                                return Err(ParseError::ExpectedExpression($line, String::from("nada")))
-                            }
-                        }
+                        None => return Err(ParseError::ExpectedExpression($line, String::from("nada"))),
                     };
                     $buffer.push(Expression::Tree(ExprTree {
                         token: operation,
-                        left: match last {
+                        left: match next {
                             Expression::Token(lit) => Some(Box::new(ExprTree::new(lit))),
                             Expression::Tree(tree) => Some(Box::new(tree)),
                         },
-                        right: None,
+                        right: None
                     }));
                 },
                 _ => $buffer.push(expr),

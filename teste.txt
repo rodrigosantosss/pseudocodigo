@@ -2,6 +2,6 @@ Algoritmo teste
 Variáveis
     i: inteiro
 Início
-    i <- 5 ^ 4
+    i <- não 5
     Escrever(i)
 Fim.
