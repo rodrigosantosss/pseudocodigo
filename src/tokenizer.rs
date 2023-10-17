@@ -1,4 +1,5 @@
 use std::{
+    rc::Rc,
     fmt::Display,
     num::{ParseFloatError, ParseIntError},
 };
@@ -22,12 +23,12 @@ pub enum Token {
     BreakLine,
     OpenParenthesis,
     CloseParenthesis,
-    Identifier(Box<str>),
+    Identifier(Rc<str>),
     Arrow, // <-
     Colon,
     IntLiteral(i64),
     RealLiteral(f64),
-    StringLiteral(Box<str>, char),
+    StringLiteral(Rc<str>, char),
     Integer,        // inteiro
     Real,           // real
     Character,      // caractere
@@ -88,7 +89,7 @@ impl From<String> for Token {
             "não" => Self::Not,
             "Escrever" => Self::Write,
             "Ler" => Self::Read,
-            _ => Self::Identifier(value.into_boxed_str()),
+            _ => Self::Identifier(value.into()),
         }
     }
 }
@@ -164,7 +165,7 @@ impl ToString for Token {
             Self::Equal => String::from("="),
             Self::Write => String::from("Escrever"),
             Self::Read => String::from("Ler"),
-            Self::Identifier(str) => str.clone().into_string(),
+            Self::Identifier(str) => str.to_string(),
             Self::RealLiteral(real) => real.to_string(),
             Self::IntLiteral(integer) => integer.to_string(),
             Self::StringLiteral(literal, quote) => {
@@ -338,7 +339,7 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
                     return Err(TokenizeError::MissingEndQuotes(line, char, buffer));
                 }
             }
-            tokens.push(Token::StringLiteral(buffer.into_boxed_str(), c));
+            tokens.push(Token::StringLiteral(buffer.into(), c));
         } else if !c.is_whitespace() {
             let token: Token = c
                 .try_into()

@@ -1,9 +1,9 @@
 use crate::parser::{ExprTree, Instruction, Program, Statement, Type};
 use crate::tokenizer::Token;
-use std::ops::Rem;
+use std::rc::Rc;
 use std::{
     collections::HashMap, ops::Add, ops::BitAnd, ops::BitOr, ops::BitXor, ops::Div, ops::Mul,
-    ops::Not, ops::Sub,
+    ops::Not, ops::Sub, ops::Rem
 };
 
 #[derive(Clone)]
@@ -11,7 +11,7 @@ enum InterValue {
     Integer(i64),
     Real(f64),
     Character(char),
-    CharacterChain(Box<str>),
+    CharacterChain(Rc<str>),
     Boolean(bool),
 }
 
@@ -192,7 +192,7 @@ impl ToString for InterValue {
             Self::Integer(x) => x.to_string(),
             Self::Real(x) => x.to_string(),
             Self::Character(x) => String::from(*x),
-            Self::CharacterChain(x) => x.clone().into_string(),
+            Self::CharacterChain(x) => x.to_string(),
             Self::Boolean(x) => x.to_string(),
         }
     }
@@ -200,7 +200,7 @@ impl ToString for InterValue {
 
 fn evaluate_expression(
     expr: &ExprTree,
-    variables: &mut HashMap<Box<str>, InterValue>,
+    variables: &mut HashMap<Rc<str>, InterValue>,
 ) -> InterValue {
     match &expr.token {
         Token::Identifier(ident) => variables.get(ident).unwrap().clone(),
@@ -278,7 +278,7 @@ fn evaluate_expression(
     }
 }
 
-fn interpret_statement(statement: &Statement, variables: &mut HashMap<Box<str>, InterValue>) {
+fn interpret_statement(statement: &Statement, variables: &mut HashMap<Rc<str>, InterValue>) {
     match statement {
         Statement::SingleInstruction(Instruction::Assign(ident, expr)) => {
             let result = evaluate_expression(&expr, variables);
@@ -311,7 +311,7 @@ fn interpret_statement(statement: &Statement, variables: &mut HashMap<Box<str>, 
                     InterValue::Character(_) => variables
                         .insert(ident.clone(), InterValue::Character(buffer.trim().parse().unwrap())),
                     InterValue::CharacterChain(_) => variables
-                        .insert(ident.clone(), InterValue::CharacterChain(Box::from(buffer.trim()))),
+                        .insert(ident.clone(), InterValue::CharacterChain(Rc::from(buffer.trim()))),
                     InterValue::Boolean(_) => {
                         variables.insert(ident.clone(), InterValue::Boolean(buffer.trim().parse().unwrap()))
                     }
@@ -365,7 +365,7 @@ fn interpret_statement(statement: &Statement, variables: &mut HashMap<Box<str>, 
 }
 
 pub fn interpret(program: Program) {
-    let mut variables: HashMap<Box<str>, InterValue> = HashMap::new();
+    let mut variables: HashMap<Rc<str>, InterValue> = HashMap::new();
     for (ident, var) in program.variables {
         variables.insert(
             ident,
@@ -373,7 +373,7 @@ pub fn interpret(program: Program) {
                 Type::Integer => InterValue::Integer(Default::default()),
                 Type::Real => InterValue::Real(Default::default()),
                 Type::Character => InterValue::Character(Default::default()),
-                Type::CharacterChain => InterValue::CharacterChain(Default::default()),
+                Type::CharacterChain => InterValue::CharacterChain(Rc::from("")),
                 Type::Boolean => InterValue::Boolean(Default::default()),
             },
         );

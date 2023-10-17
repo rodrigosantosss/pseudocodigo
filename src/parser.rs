@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{rc::Rc, collections::HashMap, fmt::Display};
 
 use crate::tokenizer::Token;
 
@@ -111,8 +111,8 @@ pub struct Variable {
 
 #[derive(Debug, Clone)]
 pub enum Instruction {
-    Assign(Box<str>, ExprTree),
-    Read(Vec<Box<str>>),
+    Assign(Rc<str>, ExprTree),
+    Read(Vec<Rc<str>>),
     Write(Vec<Token>),
 }
 
@@ -121,14 +121,14 @@ pub enum Statement {
     SingleInstruction(Instruction),
     IfStatement(ExprTree, Vec<Statement>, Option<Vec<Statement>>),
     WhileStatement(ExprTree, Vec<Statement>),
-    ForStatement(Box<str>, ExprTree, ExprTree, ExprTree, Vec<Statement>), // variable; start; end; step; code
+    ForStatement(Rc<str>, ExprTree, ExprTree, ExprTree, Vec<Statement>), // variable; start; end; step; code
     DoWhileStatement(ExprTree, Vec<Statement>),
 }
 
 #[derive(Debug, Clone)]
 pub struct Program {
     pub stack_size: usize,
-    pub variables: HashMap<Box<str>, Variable>,
+    pub variables: HashMap<Rc<str>, Variable>,
     pub statements: Vec<Statement>,
 }
 
@@ -373,7 +373,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             *line += 1;
         } else if let Token::Read = token {
             expected_token!(tokens, OpenParenthesis, *line);
-            let mut identifiers: Vec<Box<str>> = Vec::new();
+            let mut identifiers: Vec<Rc<str>> = Vec::new();
             loop {
                 identifiers.push(match tokens.next() {
                     Some(Token::Identifier(ident)) => ident,
@@ -722,7 +722,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseError> {
             expected_token!(iterator, BreakLine, ExpectedBreakLine, line);
             line += 1;
             let mut offset: usize = 0;
-            let mut identifiers: Vec<Box<str>> = Vec::new();
+            let mut identifiers: Vec<Rc<str>> = Vec::new();
             let mut curr_type: Option<Token> = None;
             loop {
                 let ident = match iterator.next() {
