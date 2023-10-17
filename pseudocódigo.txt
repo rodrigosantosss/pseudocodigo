@@ -9,5 +9,10 @@ Início
     Ler(ladoB)
     area <- ladoA * ladoB
     perimetro <- 2 * (ladoA + ladoB)
+    Se area > 1000 Então
+        Escrever('O terreno é grande.')
+    Senão
+        Escrever('O terreno é pequeno.')
+    Fim
     Escrever('O perímetro é ', perimetro, ' e a área é ', area, '.')
 Fim.

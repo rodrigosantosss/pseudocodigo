@@ -2,6 +2,9 @@ Algoritmo teste
 Variáveis
     i: inteiro
 Início
-    i <- não 5
-    Escrever(i)
+    i <- 1
+    Enquanto i <= 5 faça
+        Escrever(i)
+        i <- i + 1
+    Fim
 Fim.

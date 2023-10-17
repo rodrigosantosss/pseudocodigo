@@ -482,8 +482,8 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                     };
                 }
                 else_content = Some(parse_statements(else_tokens, line)?);
+                expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             }
-            expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             statements.push(Statement::IfStatement(condition, content, else_content));
         } else if let Token::While = token {

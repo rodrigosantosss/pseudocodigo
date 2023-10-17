@@ -199,90 +199,90 @@ impl ToString for InterValue {
 }
 
 fn evaluate_expression(
-    expr: ExprTree,
+    expr: &ExprTree,
     variables: &mut HashMap<Box<str>, InterValue>,
 ) -> InterValue {
-    match expr.token {
-        Token::Identifier(ident) => variables.get(&ident).unwrap().clone(),
-        Token::IntLiteral(x) => InterValue::Integer(x),
-        Token::RealLiteral(x) => InterValue::Real(x),
-        Token::StringLiteral(x, _) => InterValue::CharacterChain(x),
+    match &expr.token {
+        Token::Identifier(ident) => variables.get(ident).unwrap().clone(),
+        Token::IntLiteral(x) => InterValue::Integer(*x),
+        Token::RealLiteral(x) => InterValue::Real(*x),
+        Token::StringLiteral(x, _) => InterValue::CharacterChain(x.clone()),
         Token::True => InterValue::Boolean(true),
         Token::False => InterValue::Boolean(false),
-        Token::Pow => evaluate_expression(*expr.left.unwrap(), variables)
-            .pow(evaluate_expression(*expr.right.unwrap(), variables)),
-        Token::Not => !evaluate_expression(*expr.left.unwrap(), variables),
+        Token::Pow => evaluate_expression(expr.left.as_ref().unwrap(), variables)
+            .pow(evaluate_expression(expr.right.as_ref().unwrap(), variables)),
+        Token::Not => !evaluate_expression(expr.left.as_ref().unwrap(), variables),
         Token::Mul => {
-            evaluate_expression(*expr.left.unwrap(), variables)
-                * evaluate_expression(*expr.right.unwrap(), variables)
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                * evaluate_expression(expr.right.as_ref().unwrap(), variables)
         }
         Token::Div => {
-            evaluate_expression(*expr.left.unwrap(), variables)
-                / evaluate_expression(*expr.right.unwrap(), variables)
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                / evaluate_expression(expr.right.as_ref().unwrap(), variables)
         }
         Token::IDiv => {
-            evaluate_expression(*expr.left.unwrap(), variables)
-                .idiv(evaluate_expression(*expr.right.unwrap(), variables))
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                .idiv(evaluate_expression(expr.right.as_ref().unwrap(), variables))
                 .0
         }
         Token::Mod => {
-            evaluate_expression(*expr.left.unwrap(), variables)
-                .idiv(evaluate_expression(*expr.right.unwrap(), variables))
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                .idiv(evaluate_expression(expr.right.as_ref().unwrap(), variables))
                 .1
         }
         Token::Plus => {
-            evaluate_expression(*expr.left.unwrap(), variables)
-                + evaluate_expression(*expr.right.unwrap(), variables)
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                + evaluate_expression(expr.right.as_ref().unwrap(), variables)
         }
         Token::Minus => {
-            evaluate_expression(*expr.left.unwrap(), variables)
-                - evaluate_expression(*expr.right.unwrap(), variables)
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                - evaluate_expression(expr.right.as_ref().unwrap(), variables)
         }
         Token::Less => InterValue::Boolean(
-            evaluate_expression(*expr.left.unwrap(), variables)
-                < evaluate_expression(*expr.right.unwrap(), variables),
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                < evaluate_expression(expr.right.as_ref().unwrap(), variables),
         ),
         Token::Greater => InterValue::Boolean(
-            evaluate_expression(*expr.left.unwrap(), variables)
-                > evaluate_expression(*expr.right.unwrap(), variables),
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                > evaluate_expression(expr.right.as_ref().unwrap(), variables),
         ),
         Token::LessOrEqual => InterValue::Boolean(
-            evaluate_expression(*expr.left.unwrap(), variables)
-                <= evaluate_expression(*expr.right.unwrap(), variables),
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                <= evaluate_expression(expr.right.as_ref().unwrap(), variables),
         ),
         Token::GreaterOrEqual => InterValue::Boolean(
-            evaluate_expression(*expr.left.unwrap(), variables)
-                >= evaluate_expression(*expr.right.unwrap(), variables),
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                >= evaluate_expression(expr.right.as_ref().unwrap(), variables),
         ),
         Token::Equal => InterValue::Boolean(
-            evaluate_expression(*expr.left.unwrap(), variables)
-                == evaluate_expression(*expr.right.unwrap(), variables),
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                == evaluate_expression(expr.right.as_ref().unwrap(), variables),
         ),
         Token::Different => InterValue::Boolean(
-            evaluate_expression(*expr.left.unwrap(), variables)
-                != evaluate_expression(*expr.right.unwrap(), variables),
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                != evaluate_expression(expr.right.as_ref().unwrap(), variables),
         ),
         Token::And => {
-            evaluate_expression(*expr.left.unwrap(), variables)
-                & evaluate_expression(*expr.right.unwrap(), variables)
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                & evaluate_expression(expr.right.as_ref().unwrap(), variables)
         }
         Token::Or => {
-            evaluate_expression(*expr.left.unwrap(), variables)
-                | evaluate_expression(*expr.right.unwrap(), variables)
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                | evaluate_expression(expr.right.as_ref().unwrap(), variables)
         }
         Token::XOr => {
-            evaluate_expression(*expr.left.unwrap(), variables)
-                ^ evaluate_expression(*expr.right.unwrap(), variables)
+            evaluate_expression(expr.left.as_ref().unwrap(), variables)
+                ^ evaluate_expression(expr.right.as_ref().unwrap(), variables)
         }
-        _ => panic!(),
+        _ => unimplemented!(),
     }
 }
 
-fn interpret_statement(statement: Statement, variables: &mut HashMap<Box<str>, InterValue>) {
+fn interpret_statement(statement: &Statement, variables: &mut HashMap<Box<str>, InterValue>) {
     match statement {
         Statement::SingleInstruction(Instruction::Assign(ident, expr)) => {
-            let result = evaluate_expression(expr, variables);
-            variables.insert(ident, result);
+            let result = evaluate_expression(&expr, variables);
+            variables.insert(ident.clone(), result);
         }
         Statement::SingleInstruction(Instruction::Write(tokens)) => {
             let mut buffer = String::new();
@@ -290,7 +290,7 @@ fn interpret_statement(statement: Statement, variables: &mut HashMap<Box<str>, I
                 if let Token::StringLiteral(str, _) = token {
                     buffer.push_str(&str);
                 } else if let Token::Identifier(ident) = token {
-                    buffer.push_str(&variables.get(&ident).unwrap().to_string());
+                    buffer.push_str(&variables.get(ident).unwrap().to_string());
                 } else {
                     buffer.push_str(&token.to_string());
                 }
@@ -301,22 +301,42 @@ fn interpret_statement(statement: Statement, variables: &mut HashMap<Box<str>, I
             let mut buffer = String::new();
             for ident in idents {
                 std::io::stdin().read_line(&mut buffer).unwrap();
-                match &variables.get(&ident).unwrap() {
+                match &variables.get(ident).unwrap() {
                     InterValue::Integer(_) => {
-                        variables.insert(ident, InterValue::Integer(buffer.trim().parse().unwrap()))
+                        variables.insert(ident.clone(), InterValue::Integer(buffer.trim().parse().unwrap()))
                     }
                     InterValue::Real(_) => {
-                        variables.insert(ident, InterValue::Real(buffer.trim().parse().unwrap()))
+                        variables.insert(ident.clone(), InterValue::Real(buffer.trim().parse().unwrap()))
                     }
                     InterValue::Character(_) => variables
-                        .insert(ident, InterValue::Character(buffer.trim().parse().unwrap())),
+                        .insert(ident.clone(), InterValue::Character(buffer.trim().parse().unwrap())),
                     InterValue::CharacterChain(_) => variables
-                        .insert(ident, InterValue::CharacterChain(Box::from(buffer.trim()))),
+                        .insert(ident.clone(), InterValue::CharacterChain(Box::from(buffer.trim()))),
                     InterValue::Boolean(_) => {
-                        variables.insert(ident, InterValue::Boolean(buffer.trim().parse().unwrap()))
+                        variables.insert(ident.clone(), InterValue::Boolean(buffer.trim().parse().unwrap()))
                     }
                 };
                 buffer.clear();
+            }
+        }
+        Statement::IfStatement(condition, if_stat, else_stat) => {
+            if evaluate_expression(&condition, variables).to_boolean() {
+                for stat in if_stat {
+                    interpret_statement(stat, variables);
+                }
+            } else {
+                if let Some(else_stat) = else_stat {
+                    for stat in else_stat {
+                        interpret_statement(stat, variables);
+                    }
+                }
+            }
+        }
+        Statement::WhileStatement(condition, while_stat) => {
+            while evaluate_expression(&condition, variables).to_boolean() {
+                for stat in while_stat.iter() {
+                    interpret_statement(stat, variables);
+                }
             }
         }
         _ => todo!(),
@@ -338,6 +358,6 @@ pub fn interpret(program: Program) {
         );
     }
     for statement in program.statements {
-        interpret_statement(statement, &mut variables);
+        interpret_statement(&statement, &mut variables);
     }
 }
