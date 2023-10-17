@@ -320,7 +320,7 @@ fn interpret_statement(statement: &Statement, variables: &mut HashMap<Box<str>, 
             }
         }
         Statement::IfStatement(condition, if_stat, else_stat) => {
-            if evaluate_expression(&condition, variables).to_boolean() {
+            if evaluate_expression(condition, variables).to_boolean() {
                 for stat in if_stat {
                     interpret_statement(stat, variables);
                 }
@@ -333,13 +333,34 @@ fn interpret_statement(statement: &Statement, variables: &mut HashMap<Box<str>, 
             }
         }
         Statement::WhileStatement(condition, while_stat) => {
-            while evaluate_expression(&condition, variables).to_boolean() {
-                for stat in while_stat.iter() {
+            while evaluate_expression(condition, variables).to_boolean() {
+                for stat in while_stat {
                     interpret_statement(stat, variables);
                 }
             }
         }
-        _ => todo!(),
+        Statement::DoWhileStatement(condition, while_stat) => {
+            loop {
+                for stat in while_stat {
+                    interpret_statement(stat, variables);
+                }
+                if !evaluate_expression(condition, variables).to_boolean() {
+                    break;
+                }
+            }
+        }
+        Statement::ForStatement(ident, start, end, step, for_stat) => {
+            let mut i = evaluate_expression(start, variables).to_integer();
+            let end = evaluate_expression(end, variables).to_integer();
+            let step = evaluate_expression(step, variables).to_integer();
+            while i <= end {
+                variables.insert(ident.clone(), InterValue::Integer(i));
+                for stat in for_stat {
+                    interpret_statement(stat, variables);
+                }
+                i += step;
+            }
+        }
     }
 }
 

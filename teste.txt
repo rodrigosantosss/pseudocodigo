@@ -2,9 +2,7 @@ Algoritmo teste
 Variáveis
     i: inteiro
 Início
-    i <- 1
-    Enquanto i <= 5 faça
+    Para i de 0 até 10 passo 2 faça
         Escrever(i)
-        i <- i + 1
     Fim
 Fim.
