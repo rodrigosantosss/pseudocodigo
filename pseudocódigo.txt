@@ -13,6 +13,6 @@ Início
         Escrever('O terreno é grande.')
     Senão
         Escrever('O terreno é pequeno.')
-    Fim
+    FimSe
     Escrever('O perímetro é ', perimetro, ' e a área é ', area, '.')
 Fim.
