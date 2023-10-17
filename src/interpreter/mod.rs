@@ -168,7 +168,11 @@ impl Not for InterValue {
 
 impl PartialEq for InterValue {
     fn eq(&self, other: &Self) -> bool {
-        if matches!(self, Self::Real(_)) && matches!(other, Self::Real(_)) {
+        if matches!(self, Self::CharacterChain(_)) && matches!(self, Self::CharacterChain(_)) {
+            let str1 = match self { Self::CharacterChain(x) => x, _ => unreachable!() };
+            let str2 = match other { Self::CharacterChain(x) => x, _ => unreachable!() };
+            str1 == str2
+        } else if matches!(self, Self::Real(_)) && matches!(other, Self::Real(_)) {
             self.to_real() == other.to_real()
         } else {
             self.to_integer() == other.to_integer()
@@ -178,7 +182,11 @@ impl PartialEq for InterValue {
 
 impl PartialOrd for InterValue {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        if matches!(self, Self::Real(_)) && matches!(other, Self::Real(_)) {
+        if matches!(self, Self::CharacterChain(_)) && matches!(self, Self::CharacterChain(_)) {
+            let str1 = match self { Self::CharacterChain(x) => x, _ => unreachable!() };
+            let str2 = match other { Self::CharacterChain(x) => x, _ => unreachable!() };
+            str1.partial_cmp(str2)
+        } else if matches!(self, Self::Real(_)) && matches!(other, Self::Real(_)) {
             self.to_real().partial_cmp(&other.to_real())
         } else {
             self.to_integer().partial_cmp(&other.to_integer())

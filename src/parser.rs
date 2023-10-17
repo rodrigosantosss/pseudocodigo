@@ -427,7 +427,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             loop {
                 match tokens.next() {
                     Some(Token::Then) => break,
-                    Some(token) => condition.push(Expression::Token(token)),
+                    Some(token) =>  condition.push(Expression::Token(token)),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
@@ -442,21 +442,38 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             *line += 1;
             let mut content = Vec::new();
             let last: Token;
+            let mut end_count = 0usize;
+            let mut complex_stmt_count = 0usize;
             loop {
                 match tokens.next() {
                     Some(Token::End) => {
-                        last = Token::End;
-                        break;
+                        end_count += 1;
+                        if end_count > complex_stmt_count {
+                            last = Token::End;
+                            break;
+                        } else {
+                            content.push(Token::End);
+                        }
                     }
                     Some(Token::Else) => {
                         last = Token::Else;
                         break;
                     }
+                    Some(token) if matches!(token, Token::While | Token::If | Token::For | Token::Do(_)) => {
+                        if let Token::Do(str) = &token {
+                            if &**str == "Repita" {
+                                complex_stmt_count += 1;
+                            }
+                        } else {
+                            complex_stmt_count += 1;
+                        }
+                        content.push(token);
+                    }
                     Some(token) => content.push(token),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
-                            Token::Then.to_string(),
+                            Token::End.to_string(),
                             String::from("nada"),
                         ))
                     }
@@ -511,9 +528,28 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             let mut content = Vec::new();
+            let mut end_count = 0usize;
+            let mut complex_stmt_count = 0usize;
             loop {
                 match tokens.next() {
-                    Some(Token::End) => break,
+                    Some(Token::End) => {
+                        end_count += 1;
+                        if end_count > complex_stmt_count {
+                            break;
+                        } else {
+                            content.push(Token::End);
+                        }
+                    },
+                    Some(token) if matches!(token, Token::While | Token::If | Token::For | Token::Do(_)) => {
+                        if let Token::Do(str) = &token {
+                            if &**str == "Repita" {
+                                complex_stmt_count += 1;
+                            }
+                        } else {
+                            complex_stmt_count += 1;
+                        }
+                        content.push(token);
+                    }
                     Some(token) => content.push(token),
                     None => {
                         return Err(ParseError::Expected(
