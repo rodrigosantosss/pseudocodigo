@@ -3,7 +3,7 @@ use crate::tokenizer::Token;
 use std::rc::Rc;
 use std::{
     collections::HashMap, ops::Add, ops::BitAnd, ops::BitOr, ops::BitXor, ops::Div, ops::Mul,
-    ops::Not, ops::Sub, ops::Rem
+    ops::Not, ops::Rem, ops::Sub,
 };
 
 #[derive(Clone)]
@@ -169,8 +169,14 @@ impl Not for InterValue {
 impl PartialEq for InterValue {
     fn eq(&self, other: &Self) -> bool {
         if matches!(self, Self::CharacterChain(_)) && matches!(self, Self::CharacterChain(_)) {
-            let str1 = match self { Self::CharacterChain(x) => x, _ => unreachable!() };
-            let str2 = match other { Self::CharacterChain(x) => x, _ => unreachable!() };
+            let str1 = match self {
+                Self::CharacterChain(x) => x,
+                _ => unreachable!(),
+            };
+            let str2 = match other {
+                Self::CharacterChain(x) => x,
+                _ => unreachable!(),
+            };
             str1 == str2
         } else if matches!(self, Self::Real(_)) && matches!(other, Self::Real(_)) {
             self.to_real() == other.to_real()
@@ -183,8 +189,14 @@ impl PartialEq for InterValue {
 impl PartialOrd for InterValue {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         if matches!(self, Self::CharacterChain(_)) && matches!(self, Self::CharacterChain(_)) {
-            let str1 = match self { Self::CharacterChain(x) => x, _ => unreachable!() };
-            let str2 = match other { Self::CharacterChain(x) => x, _ => unreachable!() };
+            let str1 = match self {
+                Self::CharacterChain(x) => x,
+                _ => unreachable!(),
+            };
+            let str2 = match other {
+                Self::CharacterChain(x) => x,
+                _ => unreachable!(),
+            };
             str1.partial_cmp(str2)
         } else if matches!(self, Self::Real(_)) && matches!(other, Self::Real(_)) {
             self.to_real().partial_cmp(&other.to_real())
@@ -310,19 +322,26 @@ fn interpret_statement(statement: &Statement, variables: &mut HashMap<Rc<str>, I
             for ident in idents {
                 std::io::stdin().read_line(&mut buffer).unwrap();
                 match &variables.get(ident).unwrap() {
-                    InterValue::Integer(_) => {
-                        variables.insert(ident.clone(), InterValue::Integer(buffer.trim().parse().unwrap()))
-                    }
-                    InterValue::Real(_) => {
-                        variables.insert(ident.clone(), InterValue::Real(buffer.trim().parse().unwrap()))
-                    }
-                    InterValue::Character(_) => variables
-                        .insert(ident.clone(), InterValue::Character(buffer.trim().parse().unwrap())),
-                    InterValue::CharacterChain(_) => variables
-                        .insert(ident.clone(), InterValue::CharacterChain(Rc::from(buffer.trim()))),
-                    InterValue::Boolean(_) => {
-                        variables.insert(ident.clone(), InterValue::Boolean(buffer.trim().parse().unwrap()))
-                    }
+                    InterValue::Integer(_) => variables.insert(
+                        ident.clone(),
+                        InterValue::Integer(buffer.trim().parse().unwrap()),
+                    ),
+                    InterValue::Real(_) => variables.insert(
+                        ident.clone(),
+                        InterValue::Real(buffer.trim().parse().unwrap()),
+                    ),
+                    InterValue::Character(_) => variables.insert(
+                        ident.clone(),
+                        InterValue::Character(buffer.trim().parse().unwrap()),
+                    ),
+                    InterValue::CharacterChain(_) => variables.insert(
+                        ident.clone(),
+                        InterValue::CharacterChain(Rc::from(buffer.trim())),
+                    ),
+                    InterValue::Boolean(_) => variables.insert(
+                        ident.clone(),
+                        InterValue::Boolean(buffer.trim().parse().unwrap()),
+                    ),
                 };
                 buffer.clear();
             }
@@ -347,16 +366,14 @@ fn interpret_statement(statement: &Statement, variables: &mut HashMap<Rc<str>, I
                 }
             }
         }
-        Statement::DoWhileStatement(condition, while_stat) => {
-            loop {
-                for stat in while_stat {
-                    interpret_statement(stat, variables);
-                }
-                if !evaluate_expression(condition, variables).to_boolean() {
-                    break;
-                }
+        Statement::DoWhileStatement(condition, while_stat) => loop {
+            for stat in while_stat {
+                interpret_statement(stat, variables);
             }
-        }
+            if !evaluate_expression(condition, variables).to_boolean() {
+                break;
+            }
+        },
         Statement::ForStatement(ident, start, end, step, for_stat) => {
             let mut i = evaluate_expression(start, variables).to_integer();
             let end = evaluate_expression(end, variables).to_integer();

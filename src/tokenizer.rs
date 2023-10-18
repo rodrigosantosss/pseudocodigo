@@ -1,7 +1,7 @@
 use std::{
-    rc::Rc,
     fmt::Display,
     num::{ParseFloatError, ParseIntError},
+    rc::Rc,
 };
 
 #[derive(Debug, Clone)]
@@ -21,9 +21,9 @@ pub enum Token {
     EndWhile,
     EndFor,
     EndDo,
-    From,         // de
-    To,           // até
-    Step,         // passo
+    From, // de
+    To,   // até
+    Step, // passo
     BreakLine,
     OpenParenthesis,
     CloseParenthesis,

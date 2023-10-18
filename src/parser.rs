@@ -1,4 +1,4 @@
-use std::{rc::Rc, collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, rc::Rc};
 
 use crate::tokenizer::Token;
 
@@ -427,7 +427,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             loop {
                 match tokens.next() {
                     Some(Token::Then) => break,
-                    Some(token) =>  condition.push(Expression::Token(token)),
+                    Some(token) => condition.push(Expression::Token(token)),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
@@ -583,7 +583,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                     }
                     Some(Token::While) => {
                         while_stmt_count += 1;
-                        if while_stmt_count > end_while_count  {
+                        if while_stmt_count > end_while_count {
                             break;
                         }
                         content.push(Token::While);
