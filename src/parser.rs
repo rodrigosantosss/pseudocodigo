@@ -803,6 +803,9 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseError> {
                             }
                         };
                         let type_size = var_type.get_size();
+                        if offset == 0 {
+                            offset = type_size;
+                        }
                         program.stack_size += type_size * identifiers.len();
                         for identifier in identifiers {
                             program

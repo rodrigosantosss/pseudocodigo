@@ -1,0 +1,14 @@
+Algoritmo caracteristicas_terreno
+Variáveis
+    ladoA, ladoB, perimetro, area, i: inteiro
+    dizer: lógico
+Início
+    dizer <- verdadeiro
+    dizer <- não dizer
+    ladoA <- 100
+    ladoB <- 200
+    area <- ladoA * ladoB
+    perimetro <- 2 * (ladoA + ladoB)
+    Escrever('O perímetro é ', perimetro, ' e a área é ', area, '.')
+    Escrever(dizer)
+Fim.

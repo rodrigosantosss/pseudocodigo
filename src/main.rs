@@ -1,3 +1,4 @@
+mod generator;
 mod interpreter;
 mod parser;
 mod tokenizer;
@@ -7,6 +8,7 @@ fn main() {
     let mut output_file: Option<String> = None;
     let mut input_file: Option<String> = None;
     let mut interpret = false;
+    let mut emit_asm = false;
 
     while let Some(arg) = args.next() {
         if arg.as_str() == "-o" {
@@ -14,9 +16,10 @@ fn main() {
                 eprintln!("Erro: Falta o ficheiro de saída depois do -o.");
                 std::process::exit(1);
             }));
-        }
-        if arg.as_str() == "-i" {
+        } else if arg.as_str() == "-i" {
             interpret = true;
+        } else if arg.as_str() == "-s" {
+            emit_asm = true;
         } else if let Some(_) = input_file {
             eprintln!("Erro: O compilador só aceita um ficheiro de entrada.");
             std::process::exit(1);
@@ -55,6 +58,18 @@ fn main() {
     } else if interpret {
         interpreter::interpret(program);
     } else {
-        dbg!(output_file);
+        let instructions = generator::generate(program).unwrap();
+        let mut asm = String::new();
+        for instruction in instructions {
+            asm.push_str(&instruction);
+            asm.push('\n');
+        }
+        std::fs::write("temp.s", &asm).unwrap();
+        std::process::Command::new("as").arg("temp.s").arg("-o").arg("temp.o").output().unwrap();
+        std::process::Command::new("gcc").arg("-Ofast").arg("-nostartfiles").arg("temp.o").arg("-o").arg(unsafe { output_file.unwrap_unchecked() }).arg("-no-pie").output().unwrap();
+        if !emit_asm {
+            std::fs::remove_file("temp.s").unwrap();
+        }
+        std::fs::remove_file("temp.o").unwrap();
     }
 }
