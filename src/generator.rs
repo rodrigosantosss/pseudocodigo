@@ -220,7 +220,7 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tmov rdi, rax"));
                 instructions.push(Box::from("\tpop rdx"));
                 instructions.push(Box::from("\tcmp rdx, rdi"));
                 instructions.push(Box::from("\txor rax, rax"));
@@ -243,7 +243,7 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tmov rdi, rax"));
                 instructions.push(Box::from("\tpop rdx"));
                 instructions.push(Box::from("\tcmp rdx, rdi"));
                 instructions.push(Box::from("\txor rax, rax"));
@@ -266,7 +266,7 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tmov rdi, rax"));
                 instructions.push(Box::from("\tpop rdx"));
                 instructions.push(Box::from("\tcmp rdx, rdi"));
                 instructions.push(Box::from("\txor rax, rax"));
@@ -289,7 +289,7 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tmov rdi, rax"));
                 instructions.push(Box::from("\tpop rdx"));
                 instructions.push(Box::from("\tcmp rdx, rdi"));
                 instructions.push(Box::from("\txor rax, rax"));
@@ -312,7 +312,7 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tmov rdi, rax"));
                 instructions.push(Box::from("\tpop rdx"));
                 instructions.push(Box::from("\tcmp rdx, rdi"));
                 instructions.push(Box::from("\txor rax, rax"));
@@ -335,7 +335,7 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tmov rdi, rax"));
                 instructions.push(Box::from("\tpop rdx"));
                 instructions.push(Box::from("\tcmp rdx, rdi"));
                 instructions.push(Box::from("\txor rax, rax"));
@@ -449,6 +449,150 @@ fn generate_expression(
                 }
                 instructions.push(format!("\tmov al, {i}").into_boxed_str());
                 instructions.push(Box::from("\tpush al"));
+            }
+            Token::Less => {
+                generate_expression(
+                    *expression.left.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                generate_expression(
+                    *expression.right.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rax"));
+                instructions.push(Box::from("\tpop rsi"));
+                instructions.push(Box::from("\tcall strcmp"));
+                instructions.push(Box::from("\tcmp rax, 0"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmovl rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::LessOrEqual => {
+                generate_expression(
+                    *expression.left.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                generate_expression(
+                    *expression.right.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rax"));
+                instructions.push(Box::from("\tpop rsi"));
+                instructions.push(Box::from("\tcall strcmp"));
+                instructions.push(Box::from("\tcmp rax, 0"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmovle rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Greater => {
+                generate_expression(
+                    *expression.left.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                generate_expression(
+                    *expression.right.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rax"));
+                instructions.push(Box::from("\tpop rsi"));
+                instructions.push(Box::from("\tcall strcmp"));
+                instructions.push(Box::from("\tcmp rax, 0"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmova rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::GreaterOrEqual => {
+                generate_expression(
+                    *expression.left.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                generate_expression(
+                    *expression.right.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rax"));
+                instructions.push(Box::from("\tpop rsi"));
+                instructions.push(Box::from("\tcall strcmp"));
+                instructions.push(Box::from("\tcmp rax, 0"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmovae rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Equal => {
+                generate_expression(
+                    *expression.left.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                generate_expression(
+                    *expression.right.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rax"));
+                instructions.push(Box::from("\tpop rsi"));
+                instructions.push(Box::from("\tcall strcmp"));
+                instructions.push(Box::from("\tcmp rax, 0"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmove rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Different => {
+                generate_expression(
+                    *expression.left.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                generate_expression(
+                    *expression.right.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    result_type,
+                )?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rax"));
+                instructions.push(Box::from("\tpop rsi"));
+                instructions.push(Box::from("\tcall strcmp"));
+                instructions.push(Box::from("\tcmp rax, 0"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmovne rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
             }
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
@@ -735,7 +879,7 @@ pub fn generate(program: Program) -> Result<Vec<Box<str>>, GenerationError> {
     let mut instructions: Vec<Box<str>> = vec![
         Box::from(".global _start"),
         Box::from(".intel_syntax noprefix"),
-        Box::from(".extern printf scanf"),
+        Box::from(".extern printf scanf strcmp"),
         Box::from("_start:"),
         Box::from("\tpush rbp"),
         Box::from("\tmov rbp, rsp"),
