@@ -174,6 +174,30 @@ fn generate_expression(
                 instructions.push(Box::from("\txor al, 1"));
                 instructions.push(Box::from("\tpush al"));
             }
+            Token::And => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tpop dil"));
+                instructions.push(Box::from("\tand al, dil"));
+                instructions.push(Box::from("\tpush al"));
+            }
+            Token::Or => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tpop dil"));
+                instructions.push(Box::from("\tor al, dil"));
+                instructions.push(Box::from("\tpush al"));
+            }
+            Token::XOr => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tpop dil"));
+                instructions.push(Box::from("\txor al, dil"));
+                instructions.push(Box::from("\tpush al"));
+            }
             _ => return Err(GenerationError::OperationNotSupportedByType)
         }
         Type::Real => unimplemented!()
