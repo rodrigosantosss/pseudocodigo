@@ -65,8 +65,21 @@ fn main() {
             asm.push('\n');
         }
         std::fs::write("temp.s", &asm).unwrap();
-        std::process::Command::new("as").arg("temp.s").arg("-o").arg("temp.o").output().unwrap();
-        std::process::Command::new("gcc").arg("-Ofast").arg("-nostartfiles").arg("temp.o").arg("-o").arg(unsafe { output_file.unwrap_unchecked() }).arg("-no-pie").output().unwrap();
+        std::process::Command::new("as")
+            .arg("temp.s")
+            .arg("-o")
+            .arg("temp.o")
+            .output()
+            .unwrap();
+        std::process::Command::new("gcc")
+            .arg("-Ofast")
+            .arg("-nostartfiles")
+            .arg("temp.o")
+            .arg("-o")
+            .arg(unsafe { output_file.unwrap_unchecked() })
+            .arg("-no-pie")
+            .output()
+            .unwrap();
         if !emit_asm {
             std::fs::remove_file("temp.s").unwrap();
         }
