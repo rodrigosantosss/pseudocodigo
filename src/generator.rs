@@ -84,6 +84,28 @@ fn generate_expression(
                 instructions.push(Box::from("\timul rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
             }
+            Token::Div => unimplemented!(),
+            Token::IDiv => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rax"));
+                instructions.push(Box::from("\tpop rax"));
+                instructions.push(Box::from("\txor rdx, rdx"));
+                instructions.push(Box::from("\tidiv rdx"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Mod => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rax"));
+                instructions.push(Box::from("\tpop rax"));
+                instructions.push(Box::from("\txor rdx, rdx"));
+                instructions.push(Box::from("\tidiv rdx"));
+                instructions.push(Box::from("\tmov rax, rdx"));
+                instructions.push(Box::from("\tpush rax"));
+            }
             Token::Plus => {
                 generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
                 generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
@@ -101,7 +123,97 @@ fn generate_expression(
                 instructions.push(Box::from("\tsub rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            _ => unimplemented!(),
+            Token::Less => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tpop rdx"));
+                instructions.push(Box::from("\tcmp rdx, rdi"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmovl rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::LessOrEqual => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tpop rdx"));
+                instructions.push(Box::from("\tcmp rdx, rdi"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmovle rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Greater => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tpop rdx"));
+                instructions.push(Box::from("\tcmp rdx, rdi"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmova rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::GreaterOrEqual => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tpop rdx"));
+                instructions.push(Box::from("\tcmp rdx, rdi"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmovae rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Equal => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tpop rdx"));
+                instructions.push(Box::from("\tcmp rdx, rdi"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmove rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Different => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rdx"));
+                instructions.push(Box::from("\tpop rdx"));
+                instructions.push(Box::from("\tcmp rdx, rdi"));
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tcmovne rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::And => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("pop rdi"));
+                instructions.push(Box::from("and rax, rdi"));
+                instructions.push(Box::from("push rax"));
+            }
+            Token::Or => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("pop rdi"));
+                instructions.push(Box::from("or rax, rdi"));
+                instructions.push(Box::from("push rax"));
+            }
+            Token::XOr => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("pop rdi"));
+                instructions.push(Box::from("xor rax, rdi"));
+                instructions.push(Box::from("push rax"));
+            }
+            _ => panic!(),
         }
         Type::CharacterChain => match expression.token {
             Token::Identifier(ident) => {

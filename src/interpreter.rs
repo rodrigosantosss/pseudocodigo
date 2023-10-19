@@ -294,7 +294,7 @@ fn evaluate_expression(
             evaluate_expression(expr.left.as_ref().unwrap(), variables)
                 ^ evaluate_expression(expr.right.as_ref().unwrap(), variables)
         }
-        _ => unimplemented!(),
+        _ => panic!(),
     }
 }
 
