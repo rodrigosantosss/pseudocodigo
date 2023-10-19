@@ -8,6 +8,10 @@ const REGISTERS_8: [&str; 6] = [ "dil", "sil", "dl", "cl", "r8b", "r9b" ];
 #[derive(Debug)]
 pub enum GenerationError {
     IdentifierNotDeclared,
+    TypeError,
+    OperationNotSupportedByType,
+    NotCharacterLiteral,
+    CharacterNotSupported,
 }
 
 fn generate_expression(
@@ -15,82 +19,164 @@ fn generate_expression(
     variables: &HashMap<Rc<str>, Variable>,
     instructions: &mut Vec<Box<str>>,
     program_data: &mut ProgramData,
+    result_type: Type,
 ) -> Result<(), GenerationError> {
-    match expression.token {
-        Token::Identifier(ident) => {
-            let var = variables
-                .get(&ident)
-                .ok_or(GenerationError::IdentifierNotDeclared)?;
-            match var.var_type {
-                Type::Real | Type::Integer | Type::CharacterChain => instructions
-                    .push(format!("\tmov rax, qword ptr [rbp-{}]", var.offset).into_boxed_str()),
-                Type::Boolean | Type::Character => {
-                    instructions.push(Box::from("\txor rax, rax"));
-                    instructions.push(format!("\tmov al, byte ptr [rbp-{}]", var.offset).into_boxed_str());
+    match result_type {
+        Type::Integer => match expression.token {
+            Token::Identifier(ident) => {
+                let var = variables
+                    .get(&ident)
+                    .ok_or(GenerationError::IdentifierNotDeclared)?;
+                match var.var_type {
+                    Type::Integer => instructions
+                        .push(format!("\tmov rax, qword ptr [rbp-{}]", var.offset).into_boxed_str()),
+                    Type::Boolean | Type::Character => {
+                        instructions.push(format!("\tmovzx rax, byte ptr [rbp-{}]", var.offset).into_boxed_str());
+                    }
+                    _ => return Err(GenerationError::OperationNotSupportedByType)
+                }
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::StringLiteral(content, _) => {
+                if content.len() != 1 {
+                    return Err(GenerationError::NotCharacterLiteral);
+                }
+                let i = unsafe { content.chars().next().unwrap_unchecked() } as u32;
+                if i > u8::MAX as u32 {
+                    return Err(GenerationError::CharacterNotSupported);
+                }
+                instructions.push(format!("\tmov rax, {i}").into_boxed_str());
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::IntLiteral(x) => {
+                instructions.push(format!("\tmov rax, {x}").into_boxed_str());
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::True => {
+                instructions.push(Box::from("\tmov rax, 1"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::False => {
+                instructions.push(Box::from("\txor rax, rax"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Pow => {
+                program_data.pow = true;
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rsi, rax"));
+                instructions.push(Box::from("\tpop rdi"));
+                instructions.push(Box::from("\tcall pow"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Not => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tnot rax"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Mul => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tpop rdi"));
+                instructions.push(Box::from("\timul rax, rdi"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Plus => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tpop rdi"));
+                instructions.push(Box::from("\tadd rax, rdi"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            Token::Minus => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                generate_expression(*expression.right.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\tmov rdi, rax"));
+                instructions.push(Box::from("\tpop rax"));
+                instructions.push(Box::from("\tsub rax, rdi"));
+                instructions.push(Box::from("\tpush rax"));
+            }
+            _ => unimplemented!(),
+        }
+        Type::CharacterChain => match expression.token {
+            Token::Identifier(ident) => {
+                let var = variables
+                    .get(&ident)
+                    .ok_or(GenerationError::IdentifierNotDeclared)?;
+                if let Type::CharacterChain = var.var_type {
+                    instructions.push(format!("\tmov rax, qword ptr [rbp-{}]", var.offset).into_boxed_str());
+                    instructions.push(Box::from("\tpush rax"));
+                } else {
+                    return Err(GenerationError::TypeError);
                 }
             }
-            instructions.push(Box::from("\tpush rax"));
+            Token::StringLiteral(content, _) => {
+                let i = program_data.strings.len();
+                program_data.strings.push((*content).into());
+                instructions.push(format!("\tlea rax, [str{i}]").into_boxed_str());
+                instructions.push(Box::from("\tpush rax"));
+            }
+            _ => return Err(GenerationError::OperationNotSupportedByType)
         }
-        Token::IntLiteral(x) => {
-            instructions.push(format!("\tmov rax, {x}").into_boxed_str());
-            instructions.push(Box::from("\tpush rax"));
+        Type::Character => match expression.token {
+            Token::Identifier(ident) => {
+                let var = variables
+                    .get(&ident)
+                    .ok_or(GenerationError::IdentifierNotDeclared)?;
+                if let Type::Character = var.var_type {
+                    instructions.push(format!("\tmov al, byte ptr [rbp-{}]", var.offset).into_boxed_str());
+                    instructions.push(Box::from("\tpush al"));
+                } else {
+                    return Err(GenerationError::TypeError);
+                }
+            }
+            Token::StringLiteral(content, _) => {
+                if content.len() != 1 {
+                    return Err(GenerationError::NotCharacterLiteral);
+                }
+                let i = unsafe { content.chars().next().unwrap_unchecked() } as u32;
+                if i > u8::MAX as u32 {
+                    return Err(GenerationError::CharacterNotSupported);
+                }
+                instructions.push(format!("\tmov al, {i}").into_boxed_str());
+                instructions.push(Box::from("\tpush al"));
+            }
+            _ => return Err(GenerationError::OperationNotSupportedByType)
         }
-        Token::StringLiteral(content, _) => {
-            let i = program_data.strings.len();
-            program_data.strings.push((*content).into());
-            instructions.push(format!("\tlea rax, [str{i}]").into_boxed_str());
-            instructions.push(Box::from("\tpush rax"));
+        Type::Boolean => match expression.token {
+            Token::Identifier(ident) => {
+                let var = variables
+                    .get(&ident)
+                    .ok_or(GenerationError::IdentifierNotDeclared)?;
+                if let Type::Boolean = var.var_type {
+                    instructions.push(format!("\tmov al, byte ptr [rbp-{}]", var.offset).into_boxed_str());
+                    instructions.push(Box::from("\tpush al"));
+                } else {
+                    return Err(GenerationError::TypeError);
+                }
+            }
+            Token::True => {
+                instructions.push(Box::from("\tmov al, 1"));
+                instructions.push(Box::from("\tpush al"));
+            }
+            Token::False => {
+                instructions.push(Box::from("\txor al, al"));
+                instructions.push(Box::from("\tpush al"));
+            }
+            Token::Not => {
+                generate_expression(*expression.left.unwrap(), variables, instructions, program_data, result_type)?;
+                instructions.pop();
+                instructions.push(Box::from("\txor al, 1"));
+                instructions.push(Box::from("\tpush al"));
+            }
+            _ => return Err(GenerationError::OperationNotSupportedByType)
         }
-        Token::True => {
-            instructions.push(Box::from("\tmov rax, 1"));
-            instructions.push(Box::from("\tpush rax"));
-        }
-        Token::False => {
-            instructions.push(Box::from("\txor rax, rax"));
-            instructions.push(Box::from("\tpush rax"));
-        }
-        Token::Pow => {
-            program_data.pow = true;
-            generate_expression(*expression.left.unwrap(), variables, instructions, program_data)?;
-            generate_expression(*expression.right.unwrap(), variables, instructions, program_data)?;
-            instructions.pop();
-            instructions.push(Box::from("\tmov rsi, rax"));
-            instructions.push(Box::from("\tpop rdi"));
-            instructions.push(Box::from("\tcall pow"));
-            instructions.push(Box::from("\tpush rax"));
-        }
-        Token::Not => {
-            generate_expression(*expression.left.unwrap(), variables, instructions, program_data)?;
-            instructions.pop();
-            instructions.push(Box::from("\tnot rax"));
-            instructions.push(Box::from("\tpush rax"));
-        }
-        Token::Mul => {
-            generate_expression(*expression.left.unwrap(), variables, instructions, program_data)?;
-            generate_expression(*expression.right.unwrap(), variables, instructions, program_data)?;
-            instructions.pop();
-            instructions.push(Box::from("\tpop rdi"));
-            instructions.push(Box::from("\timul rax, rdi"));
-            instructions.push(Box::from("\tpush rax"));
-        }
-        Token::Plus => {
-            generate_expression(*expression.left.unwrap(), variables, instructions, program_data)?;
-            generate_expression(*expression.right.unwrap(), variables, instructions, program_data)?;
-            instructions.pop();
-            instructions.push(Box::from("\tpop rdi"));
-            instructions.push(Box::from("\tadd rax, rdi"));
-            instructions.push(Box::from("\tpush rax"));
-        }
-        Token::Minus => {
-            generate_expression(*expression.left.unwrap(), variables, instructions, program_data)?;
-            generate_expression(*expression.right.unwrap(), variables, instructions, program_data)?;
-            instructions.pop();
-            instructions.push(Box::from("\tmov rdi, rax"));
-            instructions.push(Box::from("\tpop rax"));
-            instructions.push(Box::from("\tsub rax, rdi"));
-            instructions.push(Box::from("\tpush rax"));
-        }
-        _ => unimplemented!(),
+        Type::Real => unimplemented!()
     }
     Ok(())
 }
@@ -103,11 +189,11 @@ fn generate_statement(
 ) -> Result<(), GenerationError> {
     match statement {
         Statement::SingleInstruction(Instruction::Assign(ident, expression)) => {
-            generate_expression(expression, variables, instructions, program_data)?;
-            instructions.pop();
             let var = variables
                 .get(&ident)
                 .ok_or(GenerationError::IdentifierNotDeclared)?;
+            generate_expression(expression, variables, instructions, program_data, var.var_type)?;
+            instructions.pop();
             instructions.push(
                 match var.var_type {
                     Type::Real | Type::Integer | Type::CharacterChain => {
@@ -237,6 +323,7 @@ pub fn generate(program: Program) -> Result<Vec<Box<str>>, GenerationError> {
         bool_str: false,
         pow: false,
     };
+    dbg!(&variables);
     let mut instructions: Vec<Box<str>> = vec![
         Box::from(".global _start"),
         Box::from(".intel_syntax noprefix"),
