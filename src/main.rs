@@ -75,7 +75,10 @@ fn main() {
             .arg("-o")
             .arg("temp.o")
             .output()
-            .unwrap()
+            .unwrap_or_else(|err| {
+                println!("{err}");
+                std::process::exit(1);
+            })
             .stderr;
         let gcc_stderr = std::process::Command::new("gcc")
             .arg("-Ofast")
@@ -85,7 +88,10 @@ fn main() {
             .arg(output_file)
             .arg("-no-pie")
             .output()
-            .unwrap()
+            .unwrap_or_else(|err| {
+                println!("{err}");
+                std::process::exit(1);
+            })
             .stderr;
         if !emit_asm {
             let _ = std::fs::remove_file("temp.s");

@@ -229,72 +229,95 @@ fn evaluate_expression(
         Token::StringLiteral(x, _) => InterValue::CharacterChain(x.clone()),
         Token::True => InterValue::Boolean(true),
         Token::False => InterValue::Boolean(false),
-        Token::Pow => evaluate_expression(expr.left.as_ref().unwrap(), variables)
-            .pow(evaluate_expression(expr.right.as_ref().unwrap(), variables)),
-        Token::Not => !evaluate_expression(expr.left.as_ref().unwrap(), variables),
+        Token::Pow => {
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables).pow(
+                evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables),
+            )
+        }
+        Token::Not => {
+            !evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+        }
         Token::Mul => {
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                * evaluate_expression(expr.right.as_ref().unwrap(), variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                * evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
         }
         Token::Div => {
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                / evaluate_expression(expr.right.as_ref().unwrap(), variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                / evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
         }
         Token::IDiv => {
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                .idiv(evaluate_expression(expr.right.as_ref().unwrap(), variables))
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                .idiv(evaluate_expression(
+                    unsafe { expr.right.as_ref().unwrap_unchecked() },
+                    variables,
+                ))
                 .0
         }
         Token::Mod => {
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                .idiv(evaluate_expression(expr.right.as_ref().unwrap(), variables))
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                .idiv(evaluate_expression(
+                    unsafe { expr.right.as_ref().unwrap_unchecked() },
+                    variables,
+                ))
                 .1
         }
         Token::Plus => {
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                + evaluate_expression(expr.right.as_ref().unwrap(), variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                + evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
         }
         Token::Minus => {
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                - evaluate_expression(expr.right.as_ref().unwrap(), variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                - evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
         }
         Token::Less => InterValue::Boolean(
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                < evaluate_expression(expr.right.as_ref().unwrap(), variables),
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                < evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables),
         ),
         Token::Greater => InterValue::Boolean(
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                > evaluate_expression(expr.right.as_ref().unwrap(), variables),
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                > evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables),
         ),
         Token::LessOrEqual => InterValue::Boolean(
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                <= evaluate_expression(expr.right.as_ref().unwrap(), variables),
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                <= evaluate_expression(
+                    unsafe { expr.right.as_ref().unwrap_unchecked() },
+                    variables,
+                ),
         ),
         Token::GreaterOrEqual => InterValue::Boolean(
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                >= evaluate_expression(expr.right.as_ref().unwrap(), variables),
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                >= evaluate_expression(
+                    unsafe { expr.right.as_ref().unwrap_unchecked() },
+                    variables,
+                ),
         ),
         Token::Equal => InterValue::Boolean(
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                == evaluate_expression(expr.right.as_ref().unwrap(), variables),
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                == evaluate_expression(
+                    unsafe { expr.right.as_ref().unwrap_unchecked() },
+                    variables,
+                ),
         ),
         Token::Different => InterValue::Boolean(
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                != evaluate_expression(expr.right.as_ref().unwrap(), variables),
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                != evaluate_expression(
+                    unsafe { expr.right.as_ref().unwrap_unchecked() },
+                    variables,
+                ),
         ),
         Token::And => {
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                & evaluate_expression(expr.right.as_ref().unwrap(), variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                & evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
         }
         Token::Or => {
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                | evaluate_expression(expr.right.as_ref().unwrap(), variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                | evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
         }
         Token::XOr => {
-            evaluate_expression(expr.left.as_ref().unwrap(), variables)
-                ^ evaluate_expression(expr.right.as_ref().unwrap(), variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+                ^ evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
         }
-        _ => panic!(),
+        _ => unreachable!(),
     }
 }
 

@@ -122,14 +122,14 @@ fn generate_expression(
             Token::Pow => {
                 program_data.pow = true;
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -143,7 +143,7 @@ fn generate_expression(
             }
             Token::Not => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -155,14 +155,14 @@ fn generate_expression(
             }
             Token::Mul => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -176,14 +176,14 @@ fn generate_expression(
             Token::Div => unimplemented!(),
             Token::IDiv => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -198,14 +198,14 @@ fn generate_expression(
             }
             Token::Mod => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -221,14 +221,14 @@ fn generate_expression(
             }
             Token::Plus => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -241,14 +241,14 @@ fn generate_expression(
             }
             Token::Minus => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -262,14 +262,14 @@ fn generate_expression(
             }
             Token::And => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -282,14 +282,14 @@ fn generate_expression(
             }
             Token::Or => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -302,14 +302,14 @@ fn generate_expression(
             }
             Token::XOr => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -397,7 +397,7 @@ fn generate_expression(
             }
             Token::Not => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -411,14 +411,14 @@ fn generate_expression(
             }
             Token::And => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -434,14 +434,14 @@ fn generate_expression(
             }
             Token::Or => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -457,14 +457,14 @@ fn generate_expression(
             }
             Token::XOr => {
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -484,9 +484,16 @@ fn generate_expression(
             | Token::GreaterOrEqual
             | Token::Equal
             | Token::Different => {
-                let expr_left = type_inference(expression.left.as_ref().unwrap(), variables, None);
-                let expr_right =
-                    type_inference(expression.right.as_ref().unwrap(), variables, None);
+                let expr_left = type_inference(
+                    unsafe { expression.left.as_ref().unwrap_unchecked() },
+                    variables,
+                    None,
+                );
+                let expr_right = type_inference(
+                    unsafe { expression.right.as_ref().unwrap_unchecked() },
+                    variables,
+                    None,
+                );
                 let expr_types = if expr_left == expr_right {
                     expr_left
                 } else {
@@ -500,14 +507,14 @@ fn generate_expression(
                 }
                 .ok_or(GenerationError::CouldntInferType)?;
                 generate_expression(
-                    *expression.left.unwrap(),
+                    unsafe { *expression.left.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
                     expr_types,
                 )?;
                 generate_expression(
-                    *expression.right.unwrap(),
+                    unsafe { *expression.right.unwrap_unchecked() },
                     variables,
                     instructions,
                     program_data,
@@ -775,13 +782,16 @@ fn generate_statement(
             };
             let end_branch = program_data.branches;
             program_data.branches += 1;
-            instructions.push(format!("\tje B{}", else_branch.unwrap_or(end_branch)).into_boxed_str());
+            instructions
+                .push(format!("\tje B{}", else_branch.unwrap_or(end_branch)).into_boxed_str());
             for stat in if_stat {
                 generate_statement(stat, variables, instructions, program_data)?;
             }
             instructions.push(format!("\tjmp B{}", end_branch).into_boxed_str());
             if let Some(else_stat) = else_stat {
-                instructions.push(format!("B{}:", unsafe { else_branch.unwrap_unchecked() }).into_boxed_str());
+                instructions.push(
+                    format!("B{}:", unsafe { else_branch.unwrap_unchecked() }).into_boxed_str(),
+                );
                 for stat in else_stat {
                     generate_statement(stat, variables, instructions, program_data)?;
                 }
