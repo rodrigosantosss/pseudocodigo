@@ -310,8 +310,7 @@ fn generate_expression(
                 }
             }
             Token::StringLiteral(content, _) => {
-                let i = program_data.strings.len();
-                program_data.strings.push((*content).into());
+                let i = program_data.add_string((*content).into());
                 instructions.push(format!("\tlea rax, [str{i}]").into_boxed_str());
                 instructions.push(Box::from("\tpush rax"));
             }
@@ -562,12 +561,15 @@ fn generate_statement(
             match var.var_type {
                 Type::Real | Type::Integer | Type::CharacterChain => {
                     instructions.pop();
-                    instructions.push(format!("\tmov qword ptr [rbp-{}], rax", var.offset).into_boxed_str());
+                    instructions.push(
+                        format!("\tmov qword ptr [rbp-{}], rax", var.offset).into_boxed_str(),
+                    );
                 }
                 Type::Boolean | Type::Character => {
                     instructions.pop();
                     instructions.pop();
-                    instructions.push(format!("\tmov byte ptr [rbp-{}], al", var.offset).into_boxed_str());
+                    instructions
+                        .push(format!("\tmov byte ptr [rbp-{}], al", var.offset).into_boxed_str());
                 }
             }
         }
@@ -598,8 +600,7 @@ fn generate_statement(
                 }
             }
             buffer.push_str("\\n");
-            let i = program_data.strings.len();
-            program_data.strings.push(buffer.into_boxed_str());
+            let i = program_data.add_string(buffer.into_boxed_str());
             instructions.push(format!("\tlea rdi, [str{i}]").into_boxed_str());
             let mut leftover: Vec<Variable> = Vec::new();
             let mut fp_passed = 0usize;
@@ -711,6 +712,17 @@ struct ProgramData {
     strings: Vec<Box<str>>,
     bool_str: bool,
     pow: bool,
+}
+
+impl ProgramData {
+    fn add_string(&mut self, str: Box<str>) -> usize {
+        let pos = self.strings.iter().position(|x| &**x == &*str);
+        pos.unwrap_or_else(|| {
+            let pos = self.strings.len();
+            self.strings.push(str);
+            pos
+        })
+    }
 }
 
 pub fn generate(program: Program) -> Result<Vec<Box<str>>, GenerationError> {
