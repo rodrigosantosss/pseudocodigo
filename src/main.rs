@@ -68,13 +68,14 @@ fn main() {
             asm.push('\n');
         }
         std::fs::write("temp.s", &asm).unwrap();
-        std::process::Command::new("as")
+        let as_stderr = std::process::Command::new("as")
             .arg("temp.s")
             .arg("-o")
             .arg("temp.o")
             .output()
-            .unwrap();
-        std::process::Command::new("gcc")
+            .unwrap()
+            .stderr;
+        let gcc_stderr = std::process::Command::new("gcc")
             .arg("-Ofast")
             .arg("-nostartfiles")
             .arg("temp.o")
@@ -82,10 +83,19 @@ fn main() {
             .arg(output_file)
             .arg("-no-pie")
             .output()
-            .unwrap();
+            .unwrap()
+            .stderr;
         if !emit_asm {
-            std::fs::remove_file("temp.s").unwrap();
+            let _ = std::fs::remove_file("temp.s");
         }
-        std::fs::remove_file("temp.o").unwrap();
+        let _ = std::fs::remove_file("temp.o");
+        if !as_stderr.is_empty() {
+            println!("{:?}", String::from_utf8(as_stderr).unwrap_or(String::from("error")));
+            std::process::exit(1);
+        }
+        if !gcc_stderr.is_empty() {
+            println!("{:?}", String::from_utf8(gcc_stderr).unwrap_or(String::from("error")));
+            std::process::exit(1);
+        }
     }
 }
