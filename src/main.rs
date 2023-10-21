@@ -53,12 +53,15 @@ fn main() {
         std::process::exit(1);
     });
 
-    if interpret && output_file.is_some() {
-        interpreter::interpret(program.clone());
-    } else if interpret {
-        interpreter::interpret(program);
-    } else {
-        let instructions = generator::generate(program).unwrap();
+    if interpret {
+        interpreter::interpret(&program);
+    }
+
+    if let Some(output_file) = output_file {
+        let instructions = generator::generate(program).unwrap_or_else(|err| {
+            eprintln!("{err}");
+            std::process::exit(1);
+        });
         let mut asm = String::new();
         for instruction in instructions {
             asm.push_str(&instruction);
@@ -76,7 +79,7 @@ fn main() {
             .arg("-nostartfiles")
             .arg("temp.o")
             .arg("-o")
-            .arg(unsafe { output_file.unwrap_unchecked() })
+            .arg(output_file)
             .arg("-no-pie")
             .output()
             .unwrap();

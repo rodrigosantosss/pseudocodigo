@@ -389,11 +389,11 @@ fn interpret_statement(statement: &Statement, variables: &mut HashMap<Rc<str>, I
     }
 }
 
-pub fn interpret(program: Program) {
+pub fn interpret(program: &Program) {
     let mut variables: HashMap<Rc<str>, InterValue> = HashMap::new();
-    for (ident, var) in program.variables {
+    for (ident, var) in program.variables.iter() {
         variables.insert(
-            ident,
+            ident.clone(),
             match var.var_type {
                 Type::Integer => InterValue::Integer(Default::default()),
                 Type::Real => InterValue::Real(Default::default()),
@@ -403,7 +403,7 @@ pub fn interpret(program: Program) {
             },
         );
     }
-    for statement in program.statements {
-        interpret_statement(&statement, &mut variables);
+    for statement in program.statements.iter() {
+        interpret_statement(statement, &mut variables);
     }
 }
