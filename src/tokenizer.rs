@@ -352,6 +352,9 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
                 }
             }
             tokens.push(Token::StringLiteral(buffer.into(), c));
+        } else if c == '#' {
+            while !matches!(iterator.next(), Some('\n') | None) {}
+            line += 1;
         } else if !c.is_whitespace() {
             let token: Token = c
                 .try_into()
