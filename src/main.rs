@@ -90,11 +90,17 @@ fn main() {
         }
         let _ = std::fs::remove_file("temp.o");
         if !as_stderr.is_empty() {
-            println!("{:?}", String::from_utf8(as_stderr).unwrap_or(String::from("error")));
+            println!(
+                "{:?}",
+                String::from_utf8(as_stderr).unwrap_or(String::from("error"))
+            );
             std::process::exit(1);
         }
         if !gcc_stderr.is_empty() {
-            println!("{:?}", String::from_utf8(gcc_stderr).unwrap_or(String::from("error")));
+            println!(
+                "{:?}",
+                String::from_utf8(gcc_stderr).unwrap_or(String::from("error"))
+            );
             std::process::exit(1);
         }
     }
