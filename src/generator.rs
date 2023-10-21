@@ -276,9 +276,9 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("pop rdi"));
-                instructions.push(Box::from("and rax, rdi"));
-                instructions.push(Box::from("push rax"));
+                instructions.push(Box::from("\tpop rdi"));
+                instructions.push(Box::from("\tand rax, rdi"));
+                instructions.push(Box::from("\tpush rax"));
             }
             Token::Or => {
                 generate_expression(
@@ -296,9 +296,9 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("pop rdi"));
-                instructions.push(Box::from("or rax, rdi"));
-                instructions.push(Box::from("push rax"));
+                instructions.push(Box::from("\tpop rdi"));
+                instructions.push(Box::from("\tor rax, rdi"));
+                instructions.push(Box::from("\tpush rax"));
             }
             Token::XOr => {
                 generate_expression(
@@ -316,9 +316,9 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("pop rdi"));
-                instructions.push(Box::from("xor rax, rdi"));
-                instructions.push(Box::from("push rax"));
+                instructions.push(Box::from("\tpop rdi"));
+                instructions.push(Box::from("\txor rax, rdi"));
+                instructions.push(Box::from("\tpush rax"));
             }
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
@@ -735,7 +735,7 @@ fn generate_statement(
                 .into_iter()
                 .map(|ident| {
                     if let Some(var) = variables.get(&ident) {
-                        instructions.push(Box::from("xor rax, rax"));
+                        instructions.push(Box::from("\txor rax, rax"));
                         let i = program_data.add_string(Box::from(match var.var_type {
                             Type::Real => "%lf",
                             Type::Integer => "%ld",
@@ -743,17 +743,50 @@ fn generate_statement(
                             Type::CharacterChain => "%s",
                             Type::Boolean => return Err(GenerationError::CannotReadBooleans),
                         }));
-                        instructions.push(Box::from("xor rax, rax"));
+                        instructions.push(Box::from("\txor rax, rax"));
                         instructions.push(format!("\tlea rdi, [str{i}]").into_boxed_str());
                         instructions
                             .push(format!("\tlea rsi, [rbp-{}]", var.offset).into_boxed_str());
-                        instructions.push(Box::from("call scanf"));
+                        instructions.push(Box::from("\tcall scanf"));
                         Ok(())
                     } else {
                         Err(GenerationError::CouldntInferType)
                     }
                 })
                 .collect::<Result<(), GenerationError>>()?;
+        }
+        Statement::IfStatement(condition, if_stat, else_stat) => {
+            generate_expression(
+                condition,
+                variables,
+                instructions,
+                program_data,
+                Type::Boolean,
+            )?;
+            instructions.pop();
+            instructions.pop();
+            instructions.push(Box::from("\ttest al, al"));
+            let else_branch = if else_stat.is_some() {
+                let n = program_data.branches;
+                program_data.branches += 1;
+                Some(n)
+            } else {
+                None
+            };
+            let end_branch = program_data.branches;
+            program_data.branches += 1;
+            instructions.push(format!("\tje B{}", else_branch.unwrap_or(end_branch)).into_boxed_str());
+            for stat in if_stat {
+                generate_statement(stat, variables, instructions, program_data)?;
+            }
+            instructions.push(format!("\tjmp B{}", end_branch).into_boxed_str());
+            if let Some(else_stat) = else_stat {
+                instructions.push(format!("B{}:", unsafe { else_branch.unwrap_unchecked() }).into_boxed_str());
+                for stat in else_stat {
+                    generate_statement(stat, variables, instructions, program_data)?;
+                }
+            }
+            instructions.push(format!("B{}:", end_branch).into_boxed_str());
         }
         _ => unimplemented!(),
     }
@@ -764,6 +797,7 @@ struct ProgramData {
     strings: Vec<Box<str>>,
     bool_str: bool,
     pow: bool,
+    branches: usize,
 }
 
 impl ProgramData {
@@ -783,6 +817,7 @@ pub fn generate(program: Program) -> Result<Vec<Box<str>>, GenerationError> {
         strings: Vec::new(),
         bool_str: false,
         pow: false,
+        branches: 0,
     };
     let mut instructions: Vec<Box<str>> = vec![
         Box::from(".global _start"),
