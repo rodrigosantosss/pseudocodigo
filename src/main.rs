@@ -129,8 +129,24 @@ fn main() {
     }
 
     #[cfg(windows)]
-    if output_file.is_some() || emit_asm {
+    if output_file.is_some() {
         eprintln!("O compilador não funciona no Windows, só no Linux e no macOS.");
         std::process::exit(1);
+    }
+
+    #[cfg(windows)]
+    if emit_asm {
+        let instructions = generator::generate(program).unwrap_or_else(|err| {
+            eprintln!("{err}");
+            std::process::exit(1);
+        });
+        let mut asm = String::new();
+        for instruction in instructions {
+            asm.push_str(&instruction);
+            asm.push('\n');
+        }
+        std::fs::write("temp.s", &asm).err().map(|err| {
+            println!("{err}");
+        });
     }
 }
