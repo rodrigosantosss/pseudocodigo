@@ -1,8 +1,0 @@
-Algoritmo caracteristicas_terreno
-Variáveis
-    i: inteiro
-Início
-    Para i de 1 até 10 faça
-        Escrever(i)
-    FimPara
-Fim.
