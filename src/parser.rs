@@ -602,12 +602,12 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             let mut condition = Vec::new();
             loop {
                 match tokens.next() {
-                    Some(Token::End) => break,
+                    Some(Token::EndDo) => break,
                     Some(token) => condition.push(Expression::Token(token)),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
-                            Token::End.to_string(),
+                            Token::EndDo.to_string(),
                             String::from("nada"),
                         ))
                     }
