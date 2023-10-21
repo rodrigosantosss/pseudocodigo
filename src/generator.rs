@@ -12,6 +12,8 @@ pub enum GenerationError {
     OperationNotSupportedByType,
     NotCharacterLiteral,
     CharacterNotSupported,
+    InvalidTypes,
+    OperationBetweenDifferentTypes,
 }
 
 fn generate_expression(
@@ -20,7 +22,7 @@ fn generate_expression(
     instructions: &mut Vec<Box<str>>,
     program_data: &mut ProgramData,
     result_type: Type,
-) -> Result<(), GenerationError> {
+) -> Result<Type, GenerationError> {
     match result_type {
         Type::Integer => match expression.token {
             Token::Identifier(ident) => {
@@ -39,6 +41,7 @@ fn generate_expression(
                     _ => return Err(GenerationError::OperationNotSupportedByType),
                 }
                 instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::StringLiteral(content, _) => {
                 if content.len() != 1 {
@@ -50,52 +53,54 @@ fn generate_expression(
                 }
                 instructions.push(format!("\tmov rax, {i}").into_boxed_str());
                 instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::IntLiteral(x) => {
                 instructions.push(format!("\tmov rax, {x}").into_boxed_str());
                 instructions.push(Box::from("\tpush rax"));
-            }
-            Token::True => {
-                instructions.push(Box::from("\tmov rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::False => {
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::Pow => {
                 program_data.pow = true;
-                generate_expression(
+                let type_left = generate_expression(
                     *expression.left.unwrap(),
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
-                generate_expression(
+                let type_right = generate_expression(
                     *expression.right.unwrap(),
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
+                if type_left != Type::Integer || type_right != Type::Integer {
+                    return Err(GenerationError::InvalidTypes);
+                }
                 instructions.pop();
                 instructions.push(Box::from("\tmov rsi, rax"));
                 instructions.push(Box::from("\tpop rdi"));
                 instructions.push(Box::from("\tcall pow"));
                 instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::Not => {
-                generate_expression(
+                let type_left = generate_expression(
                     *expression.left.unwrap(),
                     variables,
                     instructions,
                     program_data,
                     result_type,
                 )?;
+                if type_left != Type::Integer {
+                    return Err(GenerationError::InvalidTypes);
+                }
                 instructions.pop();
                 instructions.push(Box::from("\tnot rax"));
                 instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::Mul => {
                 generate_expression(
@@ -116,6 +121,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tpop rdi"));
                 instructions.push(Box::from("\timul rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::Div => unimplemented!(),
             Token::IDiv => {
@@ -139,6 +145,7 @@ fn generate_expression(
                 instructions.push(Box::from("\txor rdx, rdx"));
                 instructions.push(Box::from("\tidiv rdx"));
                 instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::Mod => {
                 generate_expression(
@@ -162,6 +169,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tidiv rdx"));
                 instructions.push(Box::from("\tmov rax, rdx"));
                 instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::Plus => {
                 generate_expression(
@@ -182,6 +190,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tpop rdi"));
                 instructions.push(Box::from("\tadd rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::Minus => {
                 generate_expression(
@@ -203,144 +212,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tpop rax"));
                 instructions.push(Box::from("\tsub rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
-            }
-            Token::Less => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rdx"));
-                instructions.push(Box::from("\tcmp rdx, rdi"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmovl rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::LessOrEqual => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rdx"));
-                instructions.push(Box::from("\tcmp rdx, rdi"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmovle rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::Greater => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rdx"));
-                instructions.push(Box::from("\tcmp rdx, rdi"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmova rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::GreaterOrEqual => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rdx"));
-                instructions.push(Box::from("\tcmp rdx, rdi"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmovae rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::Equal => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rdx"));
-                instructions.push(Box::from("\tcmp rdx, rdi"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmove rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::Different => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rdx"));
-                instructions.push(Box::from("\tcmp rdx, rdi"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmovne rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
+                Ok(Type::Integer)
             }
             Token::And => {
                 generate_expression(
@@ -361,6 +233,7 @@ fn generate_expression(
                 instructions.push(Box::from("pop rdi"));
                 instructions.push(Box::from("and rax, rdi"));
                 instructions.push(Box::from("push rax"));
+                Ok(Type::Integer)
             }
             Token::Or => {
                 generate_expression(
@@ -381,6 +254,7 @@ fn generate_expression(
                 instructions.push(Box::from("pop rdi"));
                 instructions.push(Box::from("or rax, rdi"));
                 instructions.push(Box::from("push rax"));
+                Ok(Type::Integer)
             }
             Token::XOr => {
                 generate_expression(
@@ -401,8 +275,9 @@ fn generate_expression(
                 instructions.push(Box::from("pop rdi"));
                 instructions.push(Box::from("xor rax, rdi"));
                 instructions.push(Box::from("push rax"));
+                Ok(Type::Integer)
             }
-            _ => panic!(),
+            _ => Err(GenerationError::OperationNotSupportedByType)
         },
         Type::CharacterChain => match expression.token {
             Token::Identifier(ident) => {
@@ -414,8 +289,9 @@ fn generate_expression(
                         format!("\tmov rax, qword ptr [rbp-{}]", var.offset).into_boxed_str(),
                     );
                     instructions.push(Box::from("\tpush rax"));
+                    Ok(Type::CharacterChain)
                 } else {
-                    return Err(GenerationError::TypeError);
+                    Err(GenerationError::TypeError)
                 }
             }
             Token::StringLiteral(content, _) => {
@@ -423,8 +299,9 @@ fn generate_expression(
                 program_data.strings.push((*content).into());
                 instructions.push(format!("\tlea rax, [str{i}]").into_boxed_str());
                 instructions.push(Box::from("\tpush rax"));
+                Ok(Type::CharacterChain)
             }
-            _ => return Err(GenerationError::OperationNotSupportedByType),
+            _ => Err(GenerationError::OperationNotSupportedByType)
         },
         Type::Character => match expression.token {
             Token::Identifier(ident) => {
@@ -434,9 +311,11 @@ fn generate_expression(
                 if let Type::Character = var.var_type {
                     instructions
                         .push(format!("\tmov al, byte ptr [rbp-{}]", var.offset).into_boxed_str());
-                    instructions.push(Box::from("\tpush al"));
+                    instructions.push(Box::from("\tsub rsp, 1"));
+                    instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                    Ok(Type::Character)
                 } else {
-                    return Err(GenerationError::TypeError);
+                    Err(GenerationError::TypeError)
                 }
             }
             Token::StringLiteral(content, _) => {
@@ -448,153 +327,11 @@ fn generate_expression(
                     return Err(GenerationError::CharacterNotSupported);
                 }
                 instructions.push(format!("\tmov al, {i}").into_boxed_str());
-                instructions.push(Box::from("\tpush al"));
+                instructions.push(Box::from("\tsub rsp, 1"));
+                instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                Ok(Type::Character)
             }
-            Token::Less => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rsi"));
-                instructions.push(Box::from("\tcall strcmp"));
-                instructions.push(Box::from("\tcmp rax, 0"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmovl rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::LessOrEqual => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rsi"));
-                instructions.push(Box::from("\tcall strcmp"));
-                instructions.push(Box::from("\tcmp rax, 0"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmovle rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::Greater => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rsi"));
-                instructions.push(Box::from("\tcall strcmp"));
-                instructions.push(Box::from("\tcmp rax, 0"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmova rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::GreaterOrEqual => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rsi"));
-                instructions.push(Box::from("\tcall strcmp"));
-                instructions.push(Box::from("\tcmp rax, 0"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmovae rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::Equal => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rsi"));
-                instructions.push(Box::from("\tcall strcmp"));
-                instructions.push(Box::from("\tcmp rax, 0"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmove rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            Token::Different => {
-                generate_expression(
-                    *expression.left.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                generate_expression(
-                    *expression.right.unwrap(),
-                    variables,
-                    instructions,
-                    program_data,
-                    result_type,
-                )?;
-                instructions.pop();
-                instructions.push(Box::from("\tmov rdi, rax"));
-                instructions.push(Box::from("\tpop rsi"));
-                instructions.push(Box::from("\tcall strcmp"));
-                instructions.push(Box::from("\tcmp rax, 0"));
-                instructions.push(Box::from("\txor rax, rax"));
-                instructions.push(Box::from("\tcmovne rax, 1"));
-                instructions.push(Box::from("\tpush rax"));
-            }
-            _ => return Err(GenerationError::OperationNotSupportedByType),
+            _ => Err(GenerationError::OperationNotSupportedByType)
         },
         Type::Boolean => match expression.token {
             Token::Identifier(ident) => {
@@ -604,18 +341,24 @@ fn generate_expression(
                 if let Type::Boolean = var.var_type {
                     instructions
                         .push(format!("\tmov al, byte ptr [rbp-{}]", var.offset).into_boxed_str());
-                    instructions.push(Box::from("\tpush al"));
+                    instructions.push(Box::from("\tsub rsp, 1"));
+                    instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                    Ok(Type::Boolean)
                 } else {
-                    return Err(GenerationError::TypeError);
+                    Err(GenerationError::TypeError)
                 }
             }
             Token::True => {
                 instructions.push(Box::from("\tmov al, 1"));
-                instructions.push(Box::from("\tpush al"));
+                instructions.push(Box::from("\tsub rsp, 1"));
+                instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                Ok(Type::Boolean)
             }
             Token::False => {
                 instructions.push(Box::from("\txor al, al"));
-                instructions.push(Box::from("\tpush al"));
+                instructions.push(Box::from("\tsub rsp, 1"));
+                instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                Ok(Type::Boolean)
             }
             Token::Not => {
                 generate_expression(
@@ -626,8 +369,11 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
+                instructions.pop();
                 instructions.push(Box::from("\txor al, 1"));
-                instructions.push(Box::from("\tpush al"));
+                instructions.push(Box::from("\tsub rsp, 1"));
+                instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                Ok(Type::Boolean)
             }
             Token::And => {
                 generate_expression(
@@ -645,9 +391,13 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("\tpop dil"));
+                instructions.pop();
+                instructions.push(Box::from("\tmov dil, byte ptr [rsp]"));
+                instructions.push(Box::from("\tadd rsp, 1"));
                 instructions.push(Box::from("\tand al, dil"));
-                instructions.push(Box::from("\tpush al"));
+                instructions.push(Box::from("\tsub rsp, 1"));
+                instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                Ok(Type::Boolean)
             }
             Token::Or => {
                 generate_expression(
@@ -665,9 +415,13 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("\tpop dil"));
+                instructions.pop();
+                instructions.push(Box::from("\tmov dil, byte ptr [rsp]"));
+                instructions.push(Box::from("\tadd rsp, 1"));
                 instructions.push(Box::from("\tor al, dil"));
-                instructions.push(Box::from("\tpush al"));
+                instructions.push(Box::from("\tsub rsp, 1"));
+                instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                Ok(Type::Boolean)
             }
             Token::XOr => {
                 generate_expression(
@@ -685,15 +439,82 @@ fn generate_expression(
                     result_type,
                 )?;
                 instructions.pop();
-                instructions.push(Box::from("\tpop dil"));
+                instructions.pop();
+                instructions.push(Box::from("\tmov dil, byte ptr [rsp]"));
+                instructions.push(Box::from("\tadd rsp, 1"));
                 instructions.push(Box::from("\txor al, dil"));
-                instructions.push(Box::from("\tpush al"));
+                instructions.push(Box::from("\tsub rsp, 1"));
+                instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                Ok(Type::Boolean)
             }
-            _ => return Err(GenerationError::OperationNotSupportedByType),
+            Token::Less | Token::LessOrEqual | Token::Greater | Token::GreaterOrEqual | Token::Equal | Token::Different => {
+                let type_left = generate_expression(
+                    *expression.left.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    Type::Integer, // TO-DO: type inference
+                )?;
+                let type_right = generate_expression(
+                    *expression.right.unwrap(),
+                    variables,
+                    instructions,
+                    program_data,
+                    Type::Integer, // TO-DO: type inference
+                )?;
+                if type_left != type_right {
+                    return Err(GenerationError::OperationBetweenDifferentTypes);
+                }
+                let inst = match expression.token {
+                    Token::Less => "setl",
+                    Token::LessOrEqual => "setle",
+                    Token::Greater => "setg",
+                    Token::GreaterOrEqual => "setge",
+                    Token::Equal => "sete",
+                    Token::Different => "setne",
+                    _ => unreachable!(),
+                };
+                match type_left {
+                    Type::Integer | Type::CharacterChain => {
+                        instructions.pop();
+                        instructions.push(Box::from("\tmov rdi, rax"));
+                        match type_left {
+                            Type::Integer => {
+                                instructions.push(Box::from("\tpop rdx"));
+                                instructions.push(Box::from("\tcmp rdx, rdi"));
+                            }
+                            Type::CharacterChain => {
+                                instructions.push(Box::from("\tpop rsi"));
+                                instructions.push(Box::from("\tcall strcmp"));
+                                instructions.push(Box::from("\tcmp rax, 0"));
+                            }
+                            _ => unreachable!()
+                        }
+                        instructions.push(format!("\t{inst} al").into_boxed_str());
+                        instructions.push(Box::from("\tsub rsp, 1"));
+                        instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                    }
+                    Type::Character | Type::Boolean => {
+                        if type_left == Type::Boolean && !matches!(expression.token, Token::Equal | Token::Different) {
+                            return Err(GenerationError::OperationNotSupportedByType);
+                        }
+                        instructions.pop();
+                        instructions.pop();
+                        instructions.push(Box::from("\tmov dil, byte ptr [rsp]"));
+                        instructions.push(Box::from("\tadd rsp, 1"));
+                        instructions.push(Box::from("\tcmp dil, al"));
+                        instructions.push(format!("\t{inst} al").into_boxed_str());
+                        instructions.push(Box::from("\tsub rsp, 1"));
+                        instructions.push(Box::from("\tmov byte ptr [rsp], al"));
+                    }
+                    Type::Real => unimplemented!()
+                }
+                Ok(Type::Boolean)
+            }
+            _ => Err(GenerationError::OperationNotSupportedByType)
         },
         Type::Real => unimplemented!(),
     }
-    Ok(())
 }
 
 fn generate_statement(
@@ -850,7 +671,8 @@ fn generate_statement(
                         instructions.push(
                             format!("mov al, byte ptr [rbp-{}]", var.offset).into_boxed_str(),
                         );
-                        instructions.push(Box::from("\tpush al"));
+                        instructions.push(Box::from("\tsub rsp, 1"));
+                        instructions.push(Box::from("\tmov byte ptr [rsp], al"));
                     }
                 }
             }
@@ -875,7 +697,6 @@ pub fn generate(program: Program) -> Result<Vec<Box<str>>, GenerationError> {
         bool_str: false,
         pow: false,
     };
-    dbg!(&variables);
     let mut instructions: Vec<Box<str>> = vec![
         Box::from(".global _start"),
         Box::from(".intel_syntax noprefix"),
