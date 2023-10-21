@@ -559,18 +559,17 @@ fn generate_statement(
                 program_data,
                 var.var_type,
             )?;
-            instructions.pop();
-            instructions.push(
-                match var.var_type {
-                    Type::Real | Type::Integer | Type::CharacterChain => {
-                        format!("\tmov qword ptr [rbp-{}], rax", var.offset)
-                    }
-                    Type::Boolean | Type::Character => {
-                        format!("\tmov byte ptr [rbp-{}], al", var.offset)
-                    }
+            match var.var_type {
+                Type::Real | Type::Integer | Type::CharacterChain => {
+                    instructions.pop();
+                    instructions.push(format!("\tmov qword ptr [rbp-{}], rax", var.offset).into_boxed_str());
                 }
-                .into_boxed_str(),
-            );
+                Type::Boolean | Type::Character => {
+                    instructions.pop();
+                    instructions.pop();
+                    instructions.push(format!("\tmov byte ptr [rbp-{}], al", var.offset).into_boxed_str());
+                }
+            }
         }
         Statement::SingleInstruction(Instruction::Write(tokens)) => {
             let mut buffer = String::new();
