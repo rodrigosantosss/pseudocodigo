@@ -50,7 +50,7 @@ fn type_inference(
     match &expression.token {
         Token::Identifier(ident) => Some(variables.get(ident)?.var_type),
         Token::StringLiteral(content, _) => Some(if content.len() != 1 {
-            Type::CharacterChain
+            Type::CharacterChain(false)
         } else {
             Type::Character
         }),
@@ -322,12 +322,12 @@ fn generate_expression(
             }
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
-        Type::CharacterChain => match expression.token {
+        Type::CharacterChain(_) => match expression.token {
             Token::Identifier(ident) => {
                 let var = variables
                     .get(&ident)
                     .ok_or(GenerationError::IdentifierNotDeclared)?;
-                if let Type::CharacterChain = var.var_type {
+                if let Type::CharacterChain(_) = var.var_type {
                     instructions.push(
                         format!("\tmov rax, qword ptr [rbp-{}]", var.offset).into_boxed_str(),
                     );
@@ -497,10 +497,10 @@ fn generate_expression(
                 let expr_types = if expr_left == expr_right {
                     expr_left
                 } else {
-                    if expr_left == Some(Type::CharacterChain)
-                        || expr_right == Some(Type::CharacterChain)
+                    if matches!(expr_left, Some(Type::CharacterChain(_)))
+                        || matches!(expr_right, Some(Type::CharacterChain(_)))
                     {
-                        Some(Type::CharacterChain)
+                        Some(Type::CharacterChain(false))
                     } else {
                         expr_left.or(expr_right)
                     }
@@ -530,7 +530,7 @@ fn generate_expression(
                     _ => unreachable!(),
                 };
                 match expr_types {
-                    Type::Integer | Type::CharacterChain => {
+                    Type::Integer | Type::CharacterChain(_) => {
                         instructions.pop();
                         instructions.push(Box::from("\tmov rdi, rax"));
                         match expr_types {
@@ -538,7 +538,7 @@ fn generate_expression(
                                 instructions.push(Box::from("\tpop rdx"));
                                 instructions.push(Box::from("\tcmp rdx, rdi"));
                             }
-                            Type::CharacterChain => {
+                            Type::CharacterChain(_) => {
                                 instructions.push(Box::from("\tpop rsi"));
                                 instructions.push(Box::from("\tcall strcmp"));
                                 instructions.push(Box::from("\tcmp rax, 0"));
@@ -576,15 +576,22 @@ fn generate_expression(
 
 fn generate_statement(
     statement: Statement,
-    variables: &HashMap<Rc<str>, Variable>,
+    variables: &mut HashMap<Rc<str>, Variable>,
     instructions: &mut Vec<Box<str>>,
     program_data: &mut ProgramData,
 ) -> Result<(), GenerationError> {
     match statement {
         Statement::SingleInstruction(Instruction::Assign(ident, expression)) => {
             let var = variables
-                .get(&ident)
+                .get_mut(&ident)
                 .ok_or(GenerationError::IdentifierNotDeclared)?;
+            if var.var_type == Type::CharacterChain(true) {
+                var.var_type = Type::CharacterChain(false);
+                instructions
+                    .push(format!("\tmov rdi, qword ptr [rbp-{}]", var.offset).into_boxed_str());
+                instructions.push(Box::from("\tcall free"));
+            }
+            let var = var.clone();
             generate_expression(
                 expression,
                 variables,
@@ -593,7 +600,7 @@ fn generate_statement(
                 var.var_type,
             )?;
             match var.var_type {
-                Type::Real | Type::Integer | Type::CharacterChain => {
+                Type::Real | Type::Integer | Type::CharacterChain(_) => {
                     instructions.pop();
                     instructions.push(
                         format!("\tmov qword ptr [rbp-{}], rax", var.offset).into_boxed_str(),
@@ -623,7 +630,7 @@ fn generate_statement(
                             Type::Real => "%lf",
                             Type::Integer => "%ld",
                             Type::Character => "%c",
-                            Type::CharacterChain => "%s",
+                            Type::CharacterChain(_) => "%s",
                             Type::Boolean => "%s",
                         });
                         vars_to_write.push(var.clone());
@@ -641,7 +648,7 @@ fn generate_statement(
             let mut normal_passed = 0usize;
             for var in vars_to_write {
                 match var.var_type {
-                    Type::Integer | Type::CharacterChain => {
+                    Type::Integer | Type::CharacterChain(_) => {
                         if normal_passed < 5 {
                             normal_passed += 1;
                             instructions.push(
@@ -707,7 +714,7 @@ fn generate_statement(
             leftover.reverse();
             for var in leftover {
                 match var.var_type {
-                    Type::Integer | Type::Real | Type::CharacterChain => {
+                    Type::Integer | Type::Real | Type::CharacterChain(_) => {
                         instructions.push(
                             format!("mov rax, qword ptr [rbp-{}]", var.offset).into_boxed_str(),
                         );
@@ -741,19 +748,37 @@ fn generate_statement(
             idents
                 .into_iter()
                 .map(|ident| {
-                    if let Some(var) = variables.get(&ident) {
-                        instructions.push(Box::from("\txor rax, rax"));
+                    if let Some(var) = variables.get_mut(&ident) {
                         let i = program_data.add_string(Box::from(match var.var_type {
                             Type::Real => "%lf",
                             Type::Integer => "%ld",
                             Type::Character => "%c",
-                            Type::CharacterChain => "%s",
+                            Type::CharacterChain(_) => "%s",
                             Type::Boolean => return Err(GenerationError::CannotReadBooleans),
                         }));
-                        instructions.push(Box::from("\txor rax, rax"));
+                        match var.var_type {
+                            Type::CharacterChain(_) => {
+                                if var.var_type == Type::CharacterChain(false) {
+                                    var.var_type = Type::CharacterChain(true);
+                                    instructions.push(Box::from("\tmov rdi, 256"));
+                                    instructions.push(Box::from("\tcall malloc"));
+                                    instructions.push(
+                                        format!("\tmov qword ptr [rbp-{}], rax", var.offset)
+                                            .into_boxed_str(),
+                                    );
+                                    instructions.push(Box::from("\tmov rsi, rax"));
+                                } else {
+                                    instructions.push(
+                                        format!("\tmov rsi, qword ptr [rbp-{}]", var.offset)
+                                            .into_boxed_str(),
+                                    );
+                                }
+                            }
+                            _ => instructions
+                                .push(format!("\tlea rsi, [rbp-{}]", var.offset).into_boxed_str()),
+                        }
                         instructions.push(format!("\tlea rdi, [str{i}]").into_boxed_str());
-                        instructions
-                            .push(format!("\tlea rsi, [rbp-{}]", var.offset).into_boxed_str());
+                        instructions.push(Box::from("\txor rax, rax"));
                         instructions.push(Box::from("\tcall scanf"));
                         Ok(())
                     } else {
@@ -890,17 +915,19 @@ impl ProgramData {
 }
 
 pub fn generate(program: Program) -> Result<Vec<Box<str>>, GenerationError> {
-    let variables = program.variables;
+    let mut variables = program.variables;
+
     let mut program_data = ProgramData {
         strings: Vec::new(),
         bool_str: false,
         pow: false,
         branches: 0,
     };
+
     let mut instructions: Vec<Box<str>> = vec![
         Box::from(".global _start"),
         Box::from(".intel_syntax noprefix"),
-        Box::from(".extern printf scanf strcmp"),
+        Box::from(".extern printf scanf strcmp malloc free"),
         Box::from("_start:"),
         Box::from("\tpush rbp"),
         Box::from("\tmov rbp, rsp"),
@@ -908,24 +935,40 @@ pub fn generate(program: Program) -> Result<Vec<Box<str>>, GenerationError> {
     ];
 
     for statement in program.statements {
-        generate_statement(statement, &variables, &mut instructions, &mut program_data)?;
+        generate_statement(
+            statement,
+            &mut variables,
+            &mut instructions,
+            &mut program_data,
+        )?;
+    }
+
+    for (_, var) in variables {
+        if let Type::CharacterChain(true) = var.var_type {
+            instructions
+                .push(format!("\tmov rdi, qword ptr [rbp-{}]", var.offset).into_boxed_str());
+            instructions.push(Box::from("\tcall free"));
+        }
     }
 
     instructions.push(Box::from("\tleave"));
     instructions.push(Box::from("\tmov rax, 60"));
     instructions.push(Box::from("\txor rdi, rdi"));
     instructions.push(Box::from("\tsyscall"));
+
     for (i, string) in program_data.strings.into_iter().enumerate() {
         instructions.push(format!("str{i}:").into_boxed_str());
         instructions
             .push(format!("\t.asciz \"{}\"", string.replace("\"", "\\\"")).into_boxed_str());
     }
+
     if program_data.bool_str {
         instructions.push(Box::from("verdadeiro:"));
         instructions.push(Box::from("\t.asciz \"verdadeiro\""));
         instructions.push(Box::from("falso:"));
         instructions.push(Box::from("\t.asciz \"falso\""));
     }
+
     if program_data.pow {
         instructions.push(Box::from("pow:"));
         instructions.push(Box::from("\txor rax, rax"));
@@ -941,5 +984,6 @@ pub fn generate(program: Program) -> Result<Vec<Box<str>>, GenerationError> {
         instructions.push(Box::from("r_pow:"));
         instructions.push(Box::from("\tret"));
     }
+
     Ok(instructions)
 }

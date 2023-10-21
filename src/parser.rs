@@ -79,7 +79,7 @@ pub enum Type {
     Integer,
     Real,
     Character,
-    CharacterChain,
+    CharacterChain(bool),
     Boolean,
 }
 
@@ -89,7 +89,7 @@ impl Type {
             Token::Integer => Some(Type::Integer),
             Token::Real => Some(Type::Real),
             Token::Character => Some(Type::Character),
-            Token::CharacterChain => Some(Type::CharacterChain),
+            Token::CharacterChain => Some(Type::CharacterChain(false)),
             Token::Boolean => Some(Type::Boolean),
             _ => None,
         }
@@ -97,7 +97,7 @@ impl Type {
 
     fn get_size(&self) -> usize {
         match self {
-            Type::Integer | Type::Real | Type::CharacterChain => 8,
+            Type::Integer | Type::Real | Type::CharacterChain(_) => 8,
             Type::Character | Type::Boolean => 1,
         }
     }

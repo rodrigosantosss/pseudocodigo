@@ -83,7 +83,7 @@ impl InterValue {
             Self::Integer(_) => Type::Integer,
             Self::Real(_) => Type::Real,
             Self::Character(_) => Type::Character,
-            Self::CharacterChain(_) => Type::CharacterChain,
+            Self::CharacterChain(_) => Type::CharacterChain(false),
             Self::Boolean(_) => Type::Boolean,
         }
     }
@@ -528,7 +528,7 @@ pub fn interpret(program: &Program) {
                 Type::Integer => InterValue::Integer(Default::default()),
                 Type::Real => InterValue::Real(Default::default()),
                 Type::Character => InterValue::Character(Default::default()),
-                Type::CharacterChain => InterValue::CharacterChain(Rc::from("")),
+                Type::CharacterChain(_) => InterValue::CharacterChain(Rc::from("")),
                 Type::Boolean => InterValue::Boolean(Default::default()),
             },
         );
