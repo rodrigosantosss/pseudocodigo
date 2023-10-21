@@ -1,17 +1,15 @@
 Algoritmo caracteristicas_terreno
 Variáveis
-    ladoA, ladoB, perimetro, area, i: inteiro
+    i: inteiro
 Início
-    Escrever('Digite o comprimento')
-    Ler(ladoA)
-    Escrever('Digite a largura')
-    Ler(ladoB)
-    area <- ladoA * ladoB
-    perimetro <- 2 * (ladoA + ladoB)
-    Se area > 1000 Então
-        Escrever('O terreno é grande.')
-    Senão
-        Escrever('O terreno é pequeno.')
-    FimSe
-    Escrever('O perímetro é ', perimetro, ' e a área é ', area, '.')
+    i <- 0
+    Repita
+        Escrever(i)
+        i <- i + 1
+    Enquanto i < 100 FimRepita
+    i <- 0
+    Enquanto i < 100 faça
+        Escrever(i)
+        i <- i + 1
+    FimEnquanto
 Fim.

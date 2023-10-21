@@ -787,7 +787,7 @@ fn generate_statement(
             for stat in if_stat {
                 generate_statement(stat, variables, instructions, program_data)?;
             }
-            instructions.push(format!("\tjmp B{}", end_branch).into_boxed_str());
+            instructions.push(format!("\tjmp B{end_branch}").into_boxed_str());
             if let Some(else_stat) = else_stat {
                 instructions.push(
                     format!("B{}:", unsafe { else_branch.unwrap_unchecked() }).into_boxed_str(),
@@ -797,6 +797,47 @@ fn generate_statement(
                 }
             }
             instructions.push(format!("B{}:", end_branch).into_boxed_str());
+        }
+        Statement::WhileStatement(condition, while_stat) => {
+            let start_branch = program_data.branches;
+            let cond_branch = program_data.branches + 1;
+            program_data.branches += 2;
+            instructions.push(format!("\tjmp B{cond_branch}").into_boxed_str());
+            instructions.push(format!("B{start_branch}:").into_boxed_str());
+            for stat in while_stat {
+                generate_statement(stat, variables, instructions, program_data)?;
+            }
+            instructions.push(format!("B{cond_branch}:").into_boxed_str());
+            generate_expression(
+                condition,
+                variables,
+                instructions,
+                program_data,
+                Type::Boolean,
+            )?;
+            instructions.pop();
+            instructions.pop();
+            instructions.push(Box::from("\ttest al, al"));
+            instructions.push(format!("\tjne B{start_branch}").into_boxed_str());
+        }
+        Statement::DoWhileStatement(condition, do_while_stat) => {
+            let start_branch = program_data.branches;
+            program_data.branches += 1;
+            instructions.push(format!("B{start_branch}:").into_boxed_str());
+            for stat in do_while_stat {
+                generate_statement(stat, variables, instructions, program_data)?;
+            }
+            generate_expression(
+                condition,
+                variables,
+                instructions,
+                program_data,
+                Type::Boolean,
+            )?;
+            instructions.pop();
+            instructions.pop();
+            instructions.push(Box::from("\ttest al, al"));
+            instructions.push(format!("\tjne B{start_branch}").into_boxed_str());
         }
         _ => unimplemented!(),
     }
