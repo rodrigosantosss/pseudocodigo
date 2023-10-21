@@ -779,7 +779,10 @@ fn generate_statement(
                         }
                         instructions.push(format!("\tlea rdi, [str{i}]").into_boxed_str());
                         instructions.push(Box::from("\txor rax, rax"));
+                        instructions.push(Box::from("\tpush rbp"));
+                        instructions.push(Box::from("\tmov rbp, rsp"));
                         instructions.push(Box::from("\tcall scanf"));
+                        instructions.push(Box::from("\tpop rbp"));
                         Ok(())
                     } else {
                         Err(GenerationError::CouldntInferType)
@@ -812,7 +815,9 @@ fn generate_statement(
             for stat in if_stat {
                 generate_statement(stat, variables, instructions, program_data)?;
             }
-            instructions.push(format!("\tjmp B{end_branch}").into_boxed_str());
+            if else_stat.is_some() {
+                instructions.push(format!("\tjmp B{end_branch}").into_boxed_str());
+            }
             if let Some(else_stat) = else_stat {
                 instructions.push(
                     format!("B{}:", unsafe { else_branch.unwrap_unchecked() }).into_boxed_str(),
