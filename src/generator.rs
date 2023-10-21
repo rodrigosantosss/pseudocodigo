@@ -1,5 +1,6 @@
 use crate::parser::{ExprTree, Instruction, Program, Statement, Type, Variable};
 use crate::tokenizer::Token;
+use std::fmt::Display;
 use std::{collections::HashMap, rc::Rc};
 
 const REGISTERS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
@@ -14,6 +15,20 @@ pub enum GenerationError {
     CharacterNotSupported,
     CouldntInferType,
     CannotReadBooleans,
+}
+
+impl Display for GenerationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::IdentifierNotDeclared => write!(f, "Há um identificador não declarado a ser usado."),
+            Self::TypeError => write!(f, "Há uma incompatibilidade de tipos."),
+            Self::OperationNotSupportedByType => write!(f, "Um tipo de dados não suporta essa operação"),
+            Self::NotCharacterLiteral => write!(f, "Esperava-se um caractere, encontrou-se uma cadeia."),
+            Self::CharacterNotSupported => write!(f, "Caractere não faz parte da tabela ASCII"),
+            Self::CouldntInferType => write!(f, "Não foi possível determinar o tipo de uma expressão"),
+            Self::CannotReadBooleans => write!(f, "Não se pode executar a instrução 'Ler' em valores lógicos."),
+        }
+    }
 }
 
 fn type_inference(
