@@ -2,14 +2,7 @@ Algoritmo caracteristicas_terreno
 Variáveis
     i: inteiro
 Início
-    i <- 0
-    Repita
+    Para i de 1 até 10 faça
         Escrever(i)
-        i <- i + 1
-    Enquanto i < 100 FimRepita
-    i <- 0
-    Enquanto i < 100 faça
-        Escrever(i)
-        i <- i + 1
-    FimEnquanto
+    FimPara
 Fim.
