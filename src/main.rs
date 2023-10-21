@@ -28,7 +28,7 @@ fn main() {
         }
     }
 
-    if output_file.is_none() && !interpret {
+    if output_file.is_none() && !interpret && !emit_asm {
         eprintln!("Erro: Tens de escolher entre interpretar e compilar!");
         std::process::exit(1);
     }
@@ -67,7 +67,9 @@ fn main() {
             asm.push_str(&instruction);
             asm.push('\n');
         }
-        std::fs::write("temp.s", &asm).unwrap();
+        std::fs::write("temp.s", &asm).err().map(|err| {
+            println!("{err}");
+        });
         let as_stderr = std::process::Command::new("as")
             .arg("temp.s")
             .arg("-o")
@@ -103,5 +105,18 @@ fn main() {
             );
             std::process::exit(1);
         }
+    } else if emit_asm {
+        let instructions = generator::generate(program).unwrap_or_else(|err| {
+            eprintln!("{err}");
+            std::process::exit(1);
+        });
+        let mut asm = String::new();
+        for instruction in instructions {
+            asm.push_str(&instruction);
+            asm.push('\n');
+        }
+        std::fs::write("temp.s", &asm).err().map(|err| {
+            println!("{err}");
+        });
     }
 }
