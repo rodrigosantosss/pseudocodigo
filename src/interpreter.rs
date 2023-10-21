@@ -1,6 +1,10 @@
 use crate::parser::{ExprTree, Instruction, Program, Statement, Type};
 use crate::tokenizer::Token;
+use std::char::ParseCharError;
+use std::fmt::Display;
+use std::num::{ParseFloatError, ParseIntError};
 use std::rc::Rc;
+use std::str::ParseBoolError;
 use std::{
     collections::HashMap, ops::Add, ops::BitAnd, ops::BitOr, ops::BitXor, ops::Div, ops::Mul,
     ops::Not, ops::Rem, ops::Sub,
@@ -73,7 +77,54 @@ impl InterValue {
             (Self::Integer(x / y), Self::Integer(x % y))
         }
     }
+
+    fn get_type(&self) -> Type {
+        match self {
+            Self::Integer(_) => Type::Integer,
+            Self::Real(_) => Type::Real,
+            Self::Character(_) => Type::Character,
+            Self::CharacterChain(_) => Type::CharacterChain,
+            Self::Boolean(_) => Type::Boolean,
+        }
+    }
 }
+
+pub enum RuntimeError {
+    MismatchedTypes,
+    ReadError,
+    UndeclaredIdentifier,
+    StandardInputError,
+}
+
+impl Display for RuntimeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MismatchedTypes => write!(f, "Há uma diferença entre os tipos das variáveis."),
+            Self::ReadError => write!(f, "Formato inválido."),
+            Self::UndeclaredIdentifier => {
+                write!(f, "Há um identificador não declarado a ser usado.")
+            }
+            Self::StandardInputError => write!(f, "Erro a ler da standard input stream."),
+        }
+    }
+}
+
+macro_rules! impl_parse_errors {
+    ($($error:ident),*) => {
+        $(impl From<$error> for RuntimeError {
+            fn from(_: $error) -> Self {
+                Self::ReadError
+            }
+        })*
+    };
+}
+
+impl_parse_errors!(
+    ParseIntError,
+    ParseFloatError,
+    ParseCharError,
+    ParseBoolError
+);
 
 impl Mul for InterValue {
     type Output = Self;
@@ -221,111 +272,138 @@ impl ToString for InterValue {
 fn evaluate_expression(
     expr: &ExprTree,
     variables: &mut HashMap<Rc<str>, InterValue>,
-) -> InterValue {
-    match &expr.token {
-        Token::Identifier(ident) => variables.get(ident).unwrap().clone(),
+) -> Result<InterValue, RuntimeError> {
+    Ok(match &expr.token {
+        Token::Identifier(ident) => variables
+            .get(ident)
+            .ok_or(RuntimeError::UndeclaredIdentifier)?
+            .clone(),
         Token::IntLiteral(x) => InterValue::Integer(*x),
         Token::RealLiteral(x) => InterValue::Real(*x),
         Token::StringLiteral(x, _) => InterValue::CharacterChain(x.clone()),
         Token::True => InterValue::Boolean(true),
         Token::False => InterValue::Boolean(false),
         Token::Pow => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables).pow(
-                evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables),
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?.pow(
+                evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)?,
             )
         }
         Token::Not => {
-            !evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+            !evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
         }
         Token::Mul => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
-                * evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
+                * evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)?
         }
         Token::Div => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
-                / evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
+                / evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)?
         }
         Token::IDiv => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
                 .idiv(evaluate_expression(
                     unsafe { expr.right.as_ref().unwrap_unchecked() },
                     variables,
-                ))
+                )?)
                 .0
         }
         Token::Mod => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
                 .idiv(evaluate_expression(
                     unsafe { expr.right.as_ref().unwrap_unchecked() },
                     variables,
-                ))
+                )?)
                 .1
         }
         Token::Plus => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
-                + evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
+                + evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)?
         }
         Token::Minus => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
-                - evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
+                - evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)?
         }
         Token::Less => InterValue::Boolean(
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
-                < evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables),
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
+                < evaluate_expression(
+                    unsafe { expr.right.as_ref().unwrap_unchecked() },
+                    variables,
+                )?,
         ),
         Token::Greater => InterValue::Boolean(
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
-                > evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables),
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
+                > evaluate_expression(
+                    unsafe { expr.right.as_ref().unwrap_unchecked() },
+                    variables,
+                )?,
         ),
         Token::LessOrEqual => InterValue::Boolean(
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
                 <= evaluate_expression(
                     unsafe { expr.right.as_ref().unwrap_unchecked() },
                     variables,
-                ),
+                )?,
         ),
         Token::GreaterOrEqual => InterValue::Boolean(
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
                 >= evaluate_expression(
                     unsafe { expr.right.as_ref().unwrap_unchecked() },
                     variables,
-                ),
+                )?,
         ),
         Token::Equal => InterValue::Boolean(
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
                 == evaluate_expression(
                     unsafe { expr.right.as_ref().unwrap_unchecked() },
                     variables,
-                ),
+                )?,
         ),
         Token::Different => InterValue::Boolean(
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
                 != evaluate_expression(
                     unsafe { expr.right.as_ref().unwrap_unchecked() },
                     variables,
-                ),
+                )?,
         ),
         Token::And => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
-                & evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
+                & evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)?
         }
         Token::Or => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
-                | evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
+                | evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)?
         }
         Token::XOr => {
-            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)
-                ^ evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)
+            evaluate_expression(unsafe { expr.left.as_ref().unwrap_unchecked() }, variables)?
+                ^ evaluate_expression(unsafe { expr.right.as_ref().unwrap_unchecked() }, variables)?
         }
         _ => unreachable!(),
-    }
+    })
 }
 
-fn interpret_statement(statement: &Statement, variables: &mut HashMap<Rc<str>, InterValue>) {
+macro_rules! extract_integer {
+    ($expr:ident, $variables:ident) => {
+        match evaluate_expression($expr, $variables)? {
+            InterValue::Integer(x) => x,
+            _ => return Err(RuntimeError::MismatchedTypes),
+        }
+    };
+}
+
+fn interpret_statement(
+    statement: &Statement,
+    variables: &mut HashMap<Rc<str>, InterValue>,
+) -> Result<(), RuntimeError> {
     match statement {
         Statement::SingleInstruction(Instruction::Assign(ident, expr)) => {
-            let result = evaluate_expression(&expr, variables);
-            variables.insert(ident.clone(), result);
+            let result = evaluate_expression(&expr, variables)?;
+            let result_type = result.get_type();
+            let prev = variables
+                .insert(ident.clone(), result)
+                .ok_or(RuntimeError::UndeclaredIdentifier)?;
+            if prev.get_type() != result_type {
+                return Err(RuntimeError::MismatchedTypes);
+            }
         }
         Statement::SingleInstruction(Instruction::Write(tokens)) => {
             let mut buffer = String::new();
@@ -333,7 +411,12 @@ fn interpret_statement(statement: &Statement, variables: &mut HashMap<Rc<str>, I
                 if let Token::StringLiteral(str, _) = token {
                     buffer.push_str(&str);
                 } else if let Token::Identifier(ident) = token {
-                    buffer.push_str(&variables.get(ident).unwrap().to_string());
+                    buffer.push_str(
+                        &variables
+                            .get(ident)
+                            .ok_or(RuntimeError::UndeclaredIdentifier)?
+                            .to_string(),
+                    );
                 } else {
                     buffer.push_str(&token.to_string());
                 }
@@ -343,73 +426,97 @@ fn interpret_statement(statement: &Statement, variables: &mut HashMap<Rc<str>, I
         Statement::SingleInstruction(Instruction::Read(idents)) => {
             let mut buffer = String::new();
             for ident in idents {
-                std::io::stdin().read_line(&mut buffer).unwrap();
-                match &variables.get(ident).unwrap() {
-                    InterValue::Integer(_) => variables.insert(
-                        ident.clone(),
-                        InterValue::Integer(buffer.trim().parse().unwrap()),
-                    ),
-                    InterValue::Real(_) => variables.insert(
-                        ident.clone(),
-                        InterValue::Real(buffer.trim().parse().unwrap()),
-                    ),
-                    InterValue::Character(_) => variables.insert(
-                        ident.clone(),
-                        InterValue::Character(buffer.trim().parse().unwrap()),
-                    ),
+                std::io::stdin()
+                    .read_line(&mut buffer)
+                    .map_err(|_| RuntimeError::StandardInputError)?;
+                match &variables
+                    .get(ident)
+                    .ok_or(RuntimeError::UndeclaredIdentifier)?
+                {
+                    InterValue::Integer(_) => {
+                        variables.insert(ident.clone(), InterValue::Integer(buffer.trim().parse()?))
+                    }
+                    InterValue::Real(_) => {
+                        variables.insert(ident.clone(), InterValue::Real(buffer.trim().parse()?))
+                    }
+                    InterValue::Character(_) => variables
+                        .insert(ident.clone(), InterValue::Character(buffer.trim().parse()?)),
                     InterValue::CharacterChain(_) => variables.insert(
                         ident.clone(),
                         InterValue::CharacterChain(Rc::from(buffer.trim())),
                     ),
-                    InterValue::Boolean(_) => variables.insert(
-                        ident.clone(),
-                        InterValue::Boolean(buffer.trim().parse().unwrap()),
-                    ),
+                    InterValue::Boolean(_) => {
+                        variables.insert(ident.clone(), InterValue::Boolean(buffer.trim().parse()?))
+                    }
                 };
                 buffer.clear();
             }
         }
         Statement::IfStatement(condition, if_stat, else_stat) => {
-            if evaluate_expression(condition, variables).to_boolean() {
-                for stat in if_stat {
-                    interpret_statement(stat, variables);
-                }
-            } else {
-                if let Some(else_stat) = else_stat {
-                    for stat in else_stat {
-                        interpret_statement(stat, variables);
+            let condition = evaluate_expression(condition, variables)?;
+            if let InterValue::Boolean(condition) = condition {
+                if condition {
+                    for stat in if_stat {
+                        interpret_statement(stat, variables)?;
+                    }
+                } else {
+                    if let Some(else_stat) = else_stat {
+                        for stat in else_stat {
+                            interpret_statement(stat, variables)?;
+                        }
                     }
                 }
+            } else {
+                return Err(RuntimeError::MismatchedTypes);
             }
         }
         Statement::WhileStatement(condition, while_stat) => {
-            while evaluate_expression(condition, variables).to_boolean() {
+            while {
+                let condition = evaluate_expression(condition, variables)?;
+                if let InterValue::Boolean(condition) = condition {
+                    condition
+                } else {
+                    return Err(RuntimeError::MismatchedTypes);
+                }
+            } {
                 for stat in while_stat {
-                    interpret_statement(stat, variables);
+                    interpret_statement(stat, variables)?;
                 }
             }
         }
         Statement::DoWhileStatement(condition, while_stat) => loop {
             for stat in while_stat {
-                interpret_statement(stat, variables);
+                interpret_statement(stat, variables)?;
             }
-            if !evaluate_expression(condition, variables).to_boolean() {
-                break;
+            let condition = evaluate_expression(condition, variables)?;
+            if let InterValue::Boolean(condition) = condition {
+                if !condition {
+                    break;
+                }
+            } else {
+                return Err(RuntimeError::MismatchedTypes);
             }
         },
         Statement::ForStatement(ident, start, end, step, for_stat) => {
-            let mut i = evaluate_expression(start, variables).to_integer();
-            let end = evaluate_expression(end, variables).to_integer();
-            let step = evaluate_expression(step, variables).to_integer();
+            let mut i = extract_integer!(start, variables);
+            let end = extract_integer!(end, variables);
+            let step = extract_integer!(step, variables);
+            let var = variables
+                .get(ident)
+                .ok_or(RuntimeError::UndeclaredIdentifier)?;
+            if var.get_type() != Type::Integer {
+                return Err(RuntimeError::MismatchedTypes);
+            }
             while i <= end {
                 variables.insert(ident.clone(), InterValue::Integer(i));
                 for stat in for_stat {
-                    interpret_statement(stat, variables);
+                    interpret_statement(stat, variables)?;
                 }
                 i += step;
             }
         }
     }
+    Ok(())
 }
 
 pub fn interpret(program: &Program) {
@@ -427,6 +534,12 @@ pub fn interpret(program: &Program) {
         );
     }
     for statement in program.statements.iter() {
-        interpret_statement(statement, &mut variables);
+        match interpret_statement(statement, &mut variables) {
+            Ok(()) => (),
+            Err(err) => {
+                println!("{err}");
+                break;
+            }
+        }
     }
 }
