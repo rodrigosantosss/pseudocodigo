@@ -1,3 +1,4 @@
+#[cfg(not(windows))]
 mod generator;
 mod interpreter;
 mod parser;
@@ -57,6 +58,7 @@ fn main() {
         interpreter::interpret(&program);
     }
 
+    #[cfg(not(windows))]
     if let Some(output_file) = output_file {
         let instructions = generator::generate(program).unwrap_or_else(|err| {
             eprintln!("{err}");
@@ -124,5 +126,11 @@ fn main() {
         std::fs::write("temp.s", &asm).err().map(|err| {
             println!("{err}");
         });
+    }
+
+    #[cfg(windows)]
+    if output_file.is_some() || emit_asm {
+        eprintln!("O compilador não funciona no Windows, só no Linux e no macOS.");
+        std::process::exit(1);
     }
 }
