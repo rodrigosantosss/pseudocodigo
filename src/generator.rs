@@ -13,6 +13,7 @@ pub enum GenerationError {
     NotCharacterLiteral,
     CharacterNotSupported,
     CouldntInferType,
+    CannotReadBooleans,
 }
 
 fn type_inference(
@@ -703,7 +704,32 @@ fn generate_statement(
             instructions.push(Box::from("\txor rax, rax"));
             instructions.push(Box::from("\tcall printf"));
         }
-        _ => (),
+        Statement::SingleInstruction(Instruction::Read(idents)) => {
+            idents
+                .into_iter()
+                .map(|ident| {
+                    if let Some(var) = variables.get(&ident) {
+                        instructions.push(Box::from("xor rax, rax"));
+                        let i = program_data.add_string(Box::from(match var.var_type {
+                            Type::Real => "%lf",
+                            Type::Integer => "%ld",
+                            Type::Character => "%c",
+                            Type::CharacterChain => "%s",
+                            Type::Boolean => return Err(GenerationError::CannotReadBooleans),
+                        }));
+                        instructions.push(Box::from("xor rax, rax"));
+                        instructions.push(format!("\tlea rdi, [str{i}]").into_boxed_str());
+                        instructions
+                            .push(format!("\tlea rsi, [rbp-{}]", var.offset).into_boxed_str());
+                        instructions.push(Box::from("call scanf"));
+                        Ok(())
+                    } else {
+                        Err(GenerationError::CouldntInferType)
+                    }
+                })
+                .collect::<Result<(), GenerationError>>()?;
+        }
+        _ => unimplemented!(),
     }
     Ok(())
 }
