@@ -37,7 +37,17 @@ fn type_inference(
         | Token::GreaterOrEqual
         | Token::Equal
         | Token::Different => Some(Type::Boolean),
-        _ => result_type,
+        _ => expression
+            .left
+            .as_ref()
+            .and_then(|expr| type_inference(expr, variables, result_type))
+            .or_else(|| {
+                expression
+                    .right
+                    .as_ref()
+                    .and_then(|expr| type_inference(expr, variables, result_type))
+            })
+            .or(result_type),
     }
 }
 
