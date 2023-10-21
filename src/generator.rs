@@ -847,13 +847,8 @@ fn generate_statement(
                 return Err(GenerationError::TypeError);
             }
             let offset = var.offset;
-            instructions.push(Box::from("\tsub rsp, 16"));
             generate_expression(end, variables, instructions, program_data, Type::Integer)?;
-            instructions.pop();
-            instructions.push(Box::from("\tmov qword ptr [rsp-16], rax"));
             generate_expression(step, variables, instructions, program_data, Type::Integer)?;
-            instructions.pop();
-            instructions.push(Box::from("\tmov qword ptr [rsp-8], rax"));
             let start_branch = program_data.branches;
             let cond_branch = program_data.branches + 1;
             program_data.branches += 2;
@@ -866,9 +861,9 @@ fn generate_statement(
                 generate_statement(stat, variables, instructions, program_data)?;
             }
             instructions.push(format!("\tmov rax, qword ptr [rbp-{offset}]").into_boxed_str());
-            instructions.push(Box::from("\tadd rax, qword ptr [rsp-8]"));
+            instructions.push(Box::from("\tadd rax, qword ptr [rsp]"));
             instructions.push(format!("B{cond_branch}:").into_boxed_str());
-            instructions.push(Box::from("\tcmp rax, qword ptr [rsp-16]"));
+            instructions.push(Box::from("\tcmp rax, qword ptr [rsp+8]"));
             instructions.push(format!("\tjle B{start_branch}").into_boxed_str());
             instructions.push(Box::from("\tadd rsp, 16"));
         }
