@@ -1,5 +1,4 @@
-use crate::parser::{ExprTree, Instruction, Program, Statement, Type, Variable};
-use crate::lexer::Token;
+use crate::parser::{ExprTree, ExprToken, OperationToken, ValueToken, Instruction, Program, Statement, Type, Variable};
 use std::fmt::Display;
 use std::{collections::HashMap, rc::Rc};
 
@@ -48,22 +47,22 @@ fn type_inference(
     result_type: Option<Type>,
 ) -> Option<Type> {
     match &expression.token {
-        Token::Identifier(ident) => Some(variables.get(ident)?.var_type),
-        Token::StringLiteral(content, _) => Some(if content.len() != 1 {
+        ExprToken::Val(ValueToken::Identifier(ident)) => Some(variables.get(ident)?.var_type),
+        ExprToken::Val(ValueToken::StringLiteral(content)) => Some(if content.len() != 1 {
             Type::CharacterChain(false)
         } else {
             Type::Character
         }),
-        Token::IntLiteral(_) => Some(Type::Integer),
-        Token::RealLiteral(_) => Some(Type::Real),
-        Token::True
-        | Token::False
-        | Token::Less
-        | Token::LessOrEqual
-        | Token::Greater
-        | Token::GreaterOrEqual
-        | Token::Equal
-        | Token::Different => Some(Type::Boolean),
+        ExprToken::Val(ValueToken::IntLiteral(_)) => Some(Type::Integer),
+        ExprToken::Val(ValueToken::RealLiteral(_)) => Some(Type::Real),
+        ExprToken::Val(ValueToken::True)
+        | ExprToken::Val(ValueToken::False)
+        | ExprToken::Op(OperationToken::LessThan)
+        | ExprToken::Op(OperationToken::LessThanOrEqual)
+        | ExprToken::Op(OperationToken::GreaterThan)
+        | ExprToken::Op(OperationToken::GreaterThanOrEqual)
+        | ExprToken::Op(OperationToken::Equality)
+        | ExprToken::Op(OperationToken::Inequality) => Some(Type::Boolean),
         _ => expression
             .left
             .as_ref()
@@ -87,7 +86,7 @@ fn generate_expression(
 ) -> Result<(), GenerationError> {
     match result_type {
         Type::Integer => match expression.token {
-            Token::Identifier(ident) => {
+            ExprToken::Val(ValueToken::Identifier(ident)) => {
                 let var = variables
                     .get(&ident)
                     .ok_or(GenerationError::IdentifierNotDeclared)?;
@@ -104,7 +103,7 @@ fn generate_expression(
                 }
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::StringLiteral(content, _) => {
+            ExprToken::Val(ValueToken::StringLiteral(content)) => {
                 if content.len() != 1 {
                     return Err(GenerationError::NotCharacterLiteral);
                 }
@@ -115,11 +114,11 @@ fn generate_expression(
                 instructions.push(format!("\tmov rax, {i}").into_boxed_str());
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::IntLiteral(x) => {
+            ExprToken::Val(ValueToken::IntLiteral(x)) => {
                 instructions.push(format!("\tmov rax, {x}").into_boxed_str());
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::Pow => {
+            ExprToken::Op(OperationToken::Pow) => {
                 program_data.pow = true;
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
@@ -141,7 +140,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tcall pow"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::Not => {
+            ExprToken::Op(OperationToken::Not) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -153,7 +152,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tnot rax"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::Mul => {
+            ExprToken::Op(OperationToken::Mul) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -173,8 +172,8 @@ fn generate_expression(
                 instructions.push(Box::from("\timul rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::Div => unimplemented!(),
-            Token::IDiv => {
+            ExprToken::Op(OperationToken::Div) => unimplemented!(),
+            ExprToken::Op(OperationToken::IDiv) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -196,7 +195,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tidiv rdx"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::Mod => {
+            ExprToken::Op(OperationToken::Mod) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -219,7 +218,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tmov rax, rdx"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::Plus => {
+            ExprToken::Op(OperationToken::Add) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -239,7 +238,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tadd rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::Minus => {
+            ExprToken::Op(OperationToken::Sub) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -260,7 +259,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tsub rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::And => {
+            ExprToken::Op(OperationToken::And) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -280,7 +279,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tand rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::Or => {
+            ExprToken::Op(OperationToken::Or) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -300,7 +299,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tor rax, rdi"));
                 instructions.push(Box::from("\tpush rax"));
             }
-            Token::XOr => {
+            ExprToken::Op(OperationToken::XOr) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -323,7 +322,7 @@ fn generate_expression(
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
         Type::CharacterChain(_) => match expression.token {
-            Token::Identifier(ident) => {
+            ExprToken::Val(ValueToken::Identifier(ident)) => {
                 let var = variables
                     .get(&ident)
                     .ok_or(GenerationError::IdentifierNotDeclared)?;
@@ -336,7 +335,7 @@ fn generate_expression(
                     return Err(GenerationError::TypeError);
                 }
             }
-            Token::StringLiteral(content, _) => {
+            ExprToken::Val(ValueToken::StringLiteral(content)) => {
                 let i = program_data.add_string((*content).into());
                 instructions.push(format!("\tlea rax, [str{i}]").into_boxed_str());
                 instructions.push(Box::from("\tpush rax"));
@@ -344,7 +343,7 @@ fn generate_expression(
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
         Type::Character => match expression.token {
-            Token::Identifier(ident) => {
+            ExprToken::Val(ValueToken::Identifier(ident)) => {
                 let var = variables
                     .get(&ident)
                     .ok_or(GenerationError::IdentifierNotDeclared)?;
@@ -357,7 +356,7 @@ fn generate_expression(
                     return Err(GenerationError::TypeError);
                 }
             }
-            Token::StringLiteral(content, _) => {
+            ExprToken::Val(ValueToken::StringLiteral(content)) => {
                 if content.len() != 1 {
                     return Err(GenerationError::NotCharacterLiteral);
                 }
@@ -372,7 +371,7 @@ fn generate_expression(
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
         Type::Boolean => match expression.token {
-            Token::Identifier(ident) => {
+            ExprToken::Val(ValueToken::Identifier(ident)) => {
                 let var = variables
                     .get(&ident)
                     .ok_or(GenerationError::IdentifierNotDeclared)?;
@@ -385,17 +384,17 @@ fn generate_expression(
                     return Err(GenerationError::TypeError);
                 }
             }
-            Token::True => {
+            ExprToken::Val(ValueToken::True) => {
                 instructions.push(Box::from("\tmov al, 1"));
                 instructions.push(Box::from("\tsub rsp, 1"));
                 instructions.push(Box::from("\tmov byte ptr [rsp], al"));
             }
-            Token::False => {
+            ExprToken::Val(ValueToken::False) => {
                 instructions.push(Box::from("\txor al, al"));
                 instructions.push(Box::from("\tsub rsp, 1"));
                 instructions.push(Box::from("\tmov byte ptr [rsp], al"));
             }
-            Token::Not => {
+            ExprToken::Op(OperationToken::Not) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -409,7 +408,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tsub rsp, 1"));
                 instructions.push(Box::from("\tmov byte ptr [rsp], al"));
             }
-            Token::And => {
+            ExprToken::Op(OperationToken::And) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -432,7 +431,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tsub rsp, 1"));
                 instructions.push(Box::from("\tmov byte ptr [rsp], al"));
             }
-            Token::Or => {
+            ExprToken::Op(OperationToken::Or) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -455,7 +454,7 @@ fn generate_expression(
                 instructions.push(Box::from("\tsub rsp, 1"));
                 instructions.push(Box::from("\tmov byte ptr [rsp], al"));
             }
-            Token::XOr => {
+            ExprToken::Op(OperationToken::XOr) => {
                 generate_expression(
                     unsafe { *expression.left.unwrap_unchecked() },
                     variables,
@@ -478,12 +477,12 @@ fn generate_expression(
                 instructions.push(Box::from("\tsub rsp, 1"));
                 instructions.push(Box::from("\tmov byte ptr [rsp], al"));
             }
-            Token::Less
-            | Token::LessOrEqual
-            | Token::Greater
-            | Token::GreaterOrEqual
-            | Token::Equal
-            | Token::Different => {
+            ExprToken::Op(OperationToken::LessThan)
+            | ExprToken::Op(OperationToken::LessThanOrEqual)
+            | ExprToken::Op(OperationToken::GreaterThan)
+            | ExprToken::Op(OperationToken::GreaterThanOrEqual)
+            | ExprToken::Op(OperationToken::Equality)
+            | ExprToken::Op(OperationToken::Inequality) => {
                 let expr_left = type_inference(
                     unsafe { expression.left.as_ref().unwrap_unchecked() },
                     variables,
@@ -521,12 +520,12 @@ fn generate_expression(
                     expr_types,
                 )?;
                 let inst = match expression.token {
-                    Token::Less => "setl",
-                    Token::LessOrEqual => "setle",
-                    Token::Greater => "setg",
-                    Token::GreaterOrEqual => "setge",
-                    Token::Equal => "sete",
-                    Token::Different => "setne",
+                    ExprToken::Op(OperationToken::LessThan) => "setl",
+                    ExprToken::Op(OperationToken::LessThanOrEqual) => "setle",
+                    ExprToken::Op(OperationToken::GreaterThan) => "setg",
+                    ExprToken::Op(OperationToken::GreaterThanOrEqual) => "setge",
+                    ExprToken::Op(OperationToken::Equality) => "sete",
+                    ExprToken::Op(OperationToken::Inequality) => "setne",
                     _ => unreachable!(),
                 };
                 match expr_types {
@@ -551,7 +550,7 @@ fn generate_expression(
                     }
                     Type::Character | Type::Boolean => {
                         if expr_types == Type::Boolean
-                            && !matches!(expression.token, Token::Equal | Token::Different)
+                            && !matches!(expression.token, ExprToken::Op(OperationToken::Equality | OperationToken::Inequality))
                         {
                             return Err(GenerationError::OperationNotSupportedByType);
                         }
@@ -619,10 +618,10 @@ fn generate_statement(
             let mut vars_to_write: Vec<Variable> = Vec::new();
             for token in tokens {
                 match token {
-                    Token::IntLiteral(x) => buffer.push_str(&x.to_string()),
-                    Token::RealLiteral(x) => buffer.push_str(&x.to_string()),
-                    Token::StringLiteral(literal, _) => buffer.push_str(&literal),
-                    Token::Identifier(ident) => {
+                    ValueToken::IntLiteral(x) => buffer.push_str(&x.to_string()),
+                    ValueToken::RealLiteral(x) => buffer.push_str(&x.to_string()),
+                    ValueToken::StringLiteral(lit) => buffer.push_str(&lit),
+                    ValueToken::Identifier(ident) => {
                         let var = variables
                             .get(&ident)
                             .ok_or(GenerationError::IdentifierNotDeclared)?;
@@ -635,9 +634,8 @@ fn generate_statement(
                         });
                         vars_to_write.push(var.clone());
                     }
-                    Token::True => buffer.push_str("verdadeiro"),
-                    Token::False => buffer.push_str("falso"),
-                    _ => unreachable!(),
+                    ValueToken::True => buffer.push_str("verdadeiro"),
+                    ValueToken::False => buffer.push_str("falso"),
                 }
             }
             buffer.push_str("\\n");

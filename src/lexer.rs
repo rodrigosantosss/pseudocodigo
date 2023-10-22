@@ -70,8 +70,8 @@ pub enum Token {
     False,          // falso
     Plus,
     Minus,
-    Mul,
-    Div,
+    Star,
+    Slash,
     IDiv, // div
     Mod,  // mod
     Pow,
@@ -143,8 +143,8 @@ impl TryFrom<char> for Token {
             ':' => Ok(Self::Colon),
             '+' => Ok(Self::Plus),
             '-' => Ok(Self::Minus),
-            '*' => Ok(Self::Mul),
-            '/' => Ok(Self::Div),
+            '*' => Ok(Self::Star),
+            '/' => Ok(Self::Slash),
             '^' => Ok(Self::Pow),
             ',' => Ok(Self::Comma),
             '=' => Ok(Self::Equal),
@@ -200,8 +200,8 @@ impl ToString for Token {
             Self::Colon => String::from(":"),
             Self::Plus => String::from("+"),
             Self::Minus => String::from("-"),
-            Self::Mul => String::from("*"),
-            Self::Div => String::from("/"),
+            Self::Star => String::from("*"),
+            Self::Slash => String::from("/"),
             Self::Pow => String::from("^"),
             Self::Comma => String::from(","),
             Self::Equal => String::from("="),

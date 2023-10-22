@@ -57,15 +57,119 @@ impl Display for ParseError {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum OperationToken {
+    Not,
+    Pow,
+    Mul,
+    Div,
+    IDiv,
+    Mod,
+    Add,
+    Sub,
+    LessThan,
+    GreaterThan,
+    LessThanOrEqual,
+    GreaterThanOrEqual,
+    Equality,
+    Inequality,
+    And,
+    Or,
+    XOr,
+}
+
+#[derive(Debug, Clone)]
+pub enum ValueToken {
+    Identifier(Rc<str>),
+    IntLiteral(i64),
+    RealLiteral(f64),
+    StringLiteral(Rc<str>),
+    True,
+    False,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExprToken {
+    Op(OperationToken),
+    Val(ValueToken),
+}
+
+impl TryFrom<&Token> for OperationToken {
+    type Error = ();
+    
+    fn try_from(value: &Token) -> Result<Self, Self::Error> {
+        match value {
+            Token::Not => Ok(OperationToken::Not),
+            Token::Pow => Ok(OperationToken::Pow),
+            Token::Star => Ok(OperationToken::Mul),
+            Token::Slash => Ok(OperationToken::Div),
+            Token::IDiv => Ok(OperationToken::IDiv),
+            Token::Mod => Ok(OperationToken::Mod),
+            Token::Plus => Ok(OperationToken::Add),
+            Token::Minus => Ok(OperationToken::Sub),
+            Token::Less => Ok(OperationToken::LessThan),
+            Token::Greater => Ok(OperationToken::GreaterThan),
+            Token::LessOrEqual => Ok(OperationToken::LessThanOrEqual),
+            Token::GreaterOrEqual => Ok(OperationToken::GreaterThanOrEqual),
+            Token::Equal => Ok(OperationToken::Equality),
+            Token::Different => Ok(OperationToken::Inequality),
+            Token::And => Ok(OperationToken::And),
+            Token::Or => Ok(OperationToken::Or),
+            Token::XOr => Ok(OperationToken::XOr),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<Token> for ValueToken {
+    type Error = ();
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match value {
+            Token::Identifier(ident) => Ok(ValueToken::Identifier(ident)),
+            Token::IntLiteral(x) => Ok(ValueToken::IntLiteral(x)),
+            Token::RealLiteral(x) => Ok(ValueToken::RealLiteral(x)),
+            Token::StringLiteral(lit, _) => Ok(ValueToken::StringLiteral(lit)),
+            Token::True => Ok(ValueToken::True),
+            Token::False => Ok(ValueToken::False),
+            _ => Err(()),
+        }
+    }
+}
+
+impl Display for ValueToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Identifier(ident) => write!(f, "{ident}"),
+            Self::IntLiteral(x) => write!(f, "{x}"),
+            Self::RealLiteral(x) => write!(f, "{x}"),
+            Self::StringLiteral(lit) => write!(f, "{lit}"),
+            Self::True => write!(f, "verdadeiro"),
+            Self::False => write!(f, "falso"),
+        }
+    }
+}
+
+impl TryFrom<Token> for ExprToken {
+    type Error = ();
+
+    fn try_from(value: Token) -> Result<Self, Self::Error> {
+        match (&value).try_into() {
+            Ok(op) => Ok(Self::Op(op)),
+            Err(()) => Ok(Self::Val(value.try_into()?)),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ExprTree {
-    pub token: Token,
+    pub token: ExprToken,
     pub left: Option<Box<ExprTree>>,
     pub right: Option<Box<ExprTree>>,
 }
 
 impl ExprTree {
-    fn new(token: Token) -> Self {
+    fn new(token: ExprToken) -> Self {
         Self {
             token,
             left: None,
@@ -113,7 +217,7 @@ pub struct Variable {
 pub enum Instruction {
     Assign(Rc<str>, ExprTree),
     Read(Vec<Rc<str>>),
-    Write(Vec<Token>),
+    Write(Vec<ValueToken>),
 }
 
 #[derive(Debug, Clone)]
@@ -220,13 +324,13 @@ macro_rules! parse_operation {
                         None => return Err(ParseError::ExpectedExpression($line, String::from("nada"))),
                     };
                     $buffer.push(Expression::Tree(ExprTree {
-                        token: operation,
+                        token: unsafe { operation.try_into().unwrap_unchecked() },
                         left: match last {
-                            Expression::Token(lit) => Some(Box::new(ExprTree::new(lit))),
+                            Expression::Token(lit) => Some(Box::new(ExprTree::new(unsafe { lit.try_into().unwrap_unchecked() }))),
                             Expression::Tree(tree) => Some(Box::new(tree)),
                         },
                         right: match next {
-                            Expression::Token(lit) => Some(Box::new(ExprTree::new(lit))),
+                            Expression::Token(lit) => Some(Box::new(ExprTree::new(unsafe { lit.try_into().unwrap_unchecked() }))),
                             Expression::Tree(tree) => Some(Box::new(tree)),
                         }
                     }));
@@ -255,9 +359,9 @@ macro_rules! parse_unary_operation {
                         None => return Err(ParseError::ExpectedExpression($line, String::from("nada"))),
                     };
                     $buffer.push(Expression::Tree(ExprTree {
-                        token: operation,
+                        token: unsafe { operation.try_into().unwrap_unchecked() },
                         left: match next {
-                            Expression::Token(lit) => Some(Box::new(ExprTree::new(lit))),
+                            Expression::Token(lit) => Some(Box::new(ExprTree::new(unsafe { lit.try_into().unwrap_unchecked() }))),
                             Expression::Tree(tree) => Some(Box::new(tree)),
                         },
                         right: None
@@ -278,7 +382,7 @@ fn parse_expression(expr: Vec<Expression>, line: usize) -> Result<ExprTree, Pars
     parse_operation!(expr, buffer, line, Pow);
     expr = buffer.into_iter();
     buffer = Vec::new();
-    parse_operation!(expr, buffer, line, Mul, Div, IDiv, Mod);
+    parse_operation!(expr, buffer, line, Star, Slash, IDiv, Mod);
     expr = buffer.into_iter();
     buffer = Vec::new();
     parse_operation!(expr, buffer, line, Plus, Minus);
@@ -308,7 +412,7 @@ fn parse_expression(expr: Vec<Expression>, line: usize) -> Result<ExprTree, Pars
     if buffer.len() == 1 {
         Ok(
             match unsafe { buffer.into_iter().next().unwrap_unchecked() } {
-                Expression::Token(token) => ExprTree::new(token),
+                Expression::Token(token) => ExprTree::new(unsafe { token.try_into().unwrap_unchecked() }),
                 Expression::Tree(tree) => tree,
             },
         )
@@ -351,7 +455,7 @@ macro_rules! expected_token {
 fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statement>, ParseError> {
     let mut tokens = tokens.into_iter().peekable();
     let mut statements = Vec::new();
-    dbg!(&tokens);
+    
     while let Some(token) = tokens.next() {
         if let Token::Identifier(ident) = token {
             expected_token!(tokens, Arrow, *line);
@@ -397,19 +501,11 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             statements.push(Statement::SingleInstruction(Instruction::Read(identifiers)));
         } else if let Token::Write = token {
             expected_token!(tokens, OpenParenthesis, *line);
-            let mut content: Vec<Token> = Vec::new();
+            let mut content: Vec<ValueToken> = Vec::new();
             loop {
                 content.push(match tokens.next() {
-                    Some(token) => {
-                        if token.is_value() {
-                            token
-                        } else {
-                            return Err(ParseError::ExpectedIdentifier(*line, token.to_string()));
-                        }
-                    }
-                    None => {
-                        return Err(ParseError::ExpectedIdentifier(*line, String::from("nada")))
-                    }
+                    Some(token) => token.clone().try_into().map_err(|_| ParseError::ExpectedIdentifier(*line, token.to_string()))?,
+                    None => return Err(ParseError::ExpectedIdentifier(*line, String::from("nada"))),
                 });
                 match tokens.peek() {
                     Some(Token::Comma) => tokens.next(),
@@ -675,7 +771,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                 }
                 step_expr = Some(parse_expression(step_expr_vec, *line)?);
             }
-            let step_expr = step_expr.unwrap_or(ExprTree::new(Token::IntLiteral(1)));
+            let step_expr = step_expr.unwrap_or(ExprTree::new(ExprToken::Val(ValueToken::IntLiteral(1))));
             let mut content = Vec::new();
             let mut end_for_count = 0usize;
             let mut for_stmt_count = 0usize;
