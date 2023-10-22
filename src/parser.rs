@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display, rc::Rc};
 
-use crate::tokenizer::Token;
+use crate::lexer::Token;
 
 pub enum ParseError {
     MissingAlgorithm(usize),
@@ -351,7 +351,7 @@ macro_rules! expected_token {
 fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statement>, ParseError> {
     let mut tokens = tokens.into_iter().peekable();
     let mut statements = Vec::new();
-
+    dbg!(&tokens);
     while let Some(token) = tokens.next() {
         if let Token::Identifier(ident) = token {
             expected_token!(tokens, Arrow, *line);
@@ -512,17 +512,12 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             let mut condition = Vec::new();
             loop {
                 match tokens.next() {
-                    Some(Token::Do(str)) => {
-                        if &*str == "faça" {
-                            break;
-                        }
-                        condition.push(Expression::Token(Token::Do(str)));
-                    }
+                    Some(Token::Do) =>  break,
                     Some(token) => condition.push(Expression::Token(token)),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
-                            Token::Do(Box::from("faça")).to_string(),
+                            Token::Do.to_string(),
                             String::from("nada"),
                         ))
                     }
@@ -532,8 +527,8 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             let mut content = Vec::new();
-            let mut end_while_count = 0usize;
-            let mut while_stmt_count = 0usize;
+            let mut end_while_count = 0isize;
+            let mut while_stmt_count = 0isize;
             loop {
                 match tokens.next() {
                     Some(Token::EndWhile) => {
@@ -543,10 +538,9 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                         }
                         content.push(Token::EndWhile);
                     }
-                    Some(Token::Do(str)) => {
-                        if &*str == "Repita" {
-                            while_stmt_count += 1;
-                        }
+                    Some(Token::Repeat) => {
+                        while_stmt_count -= 1;
+                        content.push(Token::Repeat);
                     }
                     Some(Token::While) => {
                         while_stmt_count += 1;
@@ -566,10 +560,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             statements.push(Statement::WhileStatement(condition, content));
-        } else if let Token::Do(str) = token {
-            if &*str != "Repita" {
-                return Err(ParseError::Other("Faça mal posicionado."));
-            }
+        } else if let Token::Repeat = token {
             expected_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             let mut content = Vec::new();
@@ -602,12 +593,12 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             let mut condition = Vec::new();
             loop {
                 match tokens.next() {
-                    Some(Token::EndDo) => break,
+                    Some(Token::EndRepeat) => break,
                     Some(token) => condition.push(Expression::Token(token)),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
-                            Token::EndDo.to_string(),
+                            Token::EndRepeat.to_string(),
                             String::from("nada"),
                         ))
                     }
@@ -649,19 +640,15 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                         last = Token::Step;
                         break;
                     }
-                    Some(Token::Do(str)) => {
-                        if &*str == "faça" {
-                            last = Token::Do(str);
-                            break;
-                        } else {
-                            end_expr.push(Expression::Token(Token::Do(str)));
-                        }
+                    Some(Token::Do) => {
+                        last = Token::Do;
+                        break;
                     }
                     Some(token) => end_expr.push(Expression::Token(token)),
                     None => {
                         return Err(ParseError::Expected(
                             *line,
-                            Token::Do(Box::from("faça")).to_string(),
+                            Token::Do.to_string(),
                             String::from("nada"),
                         ))
                     }
@@ -673,18 +660,14 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                 let mut step_expr_vec = Vec::new();
                 loop {
                     match tokens.next() {
-                        Some(Token::Do(str)) => {
-                            if &*str == "faça" {
-                                break;
-                            } else {
-                                step_expr_vec.push(Expression::Token(Token::Do(str)));
-                            }
+                        Some(Token::Do) => {
+                            break;
                         }
                         Some(token) => step_expr_vec.push(Expression::Token(token)),
                         None => {
                             return Err(ParseError::Expected(
                                 *line,
-                                Token::Do(Box::from("faça")).to_string(),
+                                Token::Do.to_string(),
                                 String::from("nada"),
                             ))
                         }

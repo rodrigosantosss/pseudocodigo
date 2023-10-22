@@ -4,6 +4,33 @@ use std::{
     rc::Rc,
 };
 
+#[derive(Debug, Clone, Copy)]
+pub enum Quotes {
+    SingleQuotes,
+    DoubleQuotes,
+}
+
+impl From<&Quotes> for char {
+    fn from(value: &Quotes) -> Self {
+        match value {
+            Quotes::SingleQuotes => '\'',
+            Quotes::DoubleQuotes => '"',
+        }
+    }
+}
+
+impl TryFrom<char> for Quotes {
+    type Error = ();
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        match value {
+            '\'' => Ok(Self::SingleQuotes),
+            '"' => Ok(Self::DoubleQuotes),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Token {
     Algorithm, // Algoritmo
@@ -16,11 +43,12 @@ pub enum Token {
     Else,         // Senão
     While,        // Enquanto,
     For,          // Para
-    Do(Box<str>), // faça, repita
+    Do, // faça
+    Repeat, // repita
     EndIf,
     EndWhile,
     EndFor,
-    EndDo,
+    EndRepeat,
     From, // de
     To,   // até
     Step, // passo
@@ -32,7 +60,7 @@ pub enum Token {
     Colon,
     IntLiteral(i64),
     RealLiteral(f64),
-    StringLiteral(Rc<str>, char),
+    StringLiteral(Rc<str>, Quotes),
     Integer,        // inteiro
     Real,           // real
     Character,      // caractere
@@ -74,11 +102,12 @@ impl From<String> for Token {
             "Senão" => Self::Else,
             "Enquanto" => Self::While,
             "Para" => Self::For,
-            "faça" | "Repita" => Self::Do(value.into_boxed_str()),
+            "faça" => Self::Do,
+            "Repita" => Self::Repeat,
             "FimSe" => Self::EndIf,
             "FimEnquanto" => Self::EndWhile,
             "FimPara" => Self::EndFor,
-            "FimRepita" => Self::EndDo,
+            "FimRepita" => Self::EndRepeat,
             "de" => Self::From,
             "até" => Self::To,
             "passo" => Self::Step,
@@ -137,11 +166,12 @@ impl ToString for Token {
             Self::Else => String::from("Senão"),
             Self::While => String::from("Enquanto"),
             Self::For => String::from("Para"),
-            Self::Do(str) => str.clone().into_string(),
+            Self::Do => String::from("faça"),
+            Self::Repeat => String::from("Repita"),
             Self::EndIf => String::from("FimSe"),
             Self::EndWhile => String::from("FimEnquanto"),
             Self::EndFor => String::from("FimPara"),
-            Self::EndDo => String::from("FimRepita"),
+            Self::EndRepeat => String::from("FimRepita"),
             Self::From => String::from("de"),
             Self::To => String::from("até"),
             Self::Step => String::from("passo"),
@@ -182,9 +212,10 @@ impl ToString for Token {
             Self::IntLiteral(integer) => integer.to_string(),
             Self::StringLiteral(literal, quote) => {
                 let mut str = String::new();
-                str.push(*quote);
+                let quote: char = quote.into();
+                str.push(quote);
                 str.push_str(&literal);
-                str.push(*quote);
+                str.push(quote);
                 str
             }
         }
@@ -351,7 +382,7 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
                     return Err(TokenizeError::MissingEndQuotes(line, char, buffer));
                 }
             }
-            tokens.push(Token::StringLiteral(buffer.into(), c));
+            tokens.push(Token::StringLiteral(buffer.into(), unsafe { c.try_into().unwrap_unchecked() }));
         } else if c == '#' {
             while !matches!(iterator.next(), Some('\n') | None) {}
             line += 1;

@@ -1,5 +1,5 @@
 use crate::parser::{ExprTree, Instruction, Program, Statement, Type, Variable};
-use crate::tokenizer::Token;
+use crate::lexer::Token;
 use std::fmt::Display;
 use std::{collections::HashMap, rc::Rc};
 

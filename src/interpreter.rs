@@ -1,5 +1,5 @@
 use crate::parser::{ExprTree, Instruction, Program, Statement, Type};
-use crate::tokenizer::Token;
+use crate::lexer::Token;
 use std::char::ParseCharError;
 use std::fmt::Display;
 use std::num::{ParseFloatError, ParseIntError};

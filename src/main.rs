@@ -2,7 +2,7 @@
 mod generator;
 mod interpreter;
 mod parser;
-mod tokenizer;
+mod lexer;
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -44,7 +44,7 @@ fn main() {
         std::process::exit(1);
     });
 
-    let tokens = tokenizer::tokenize(code).unwrap_or_else(|err| {
+    let tokens = lexer::tokenize(code).unwrap_or_else(|err| {
         eprintln!("{err}");
         std::process::exit(1);
     });
