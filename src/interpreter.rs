@@ -1,4 +1,6 @@
-use crate::parser::{ExprTree, Instruction, Program, Statement, Type, ExprToken, ValueToken, OperationToken};
+use crate::parser::{
+    ExprToken, ExprTree, Instruction, OperationToken, Program, Statement, Type, ValueToken,
+};
 use std::char::ParseCharError;
 use std::fmt::Display;
 use std::num::{ParseFloatError, ParseIntError};

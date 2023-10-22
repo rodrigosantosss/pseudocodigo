@@ -1,8 +1,8 @@
 #[cfg(not(windows))]
 mod generator;
 mod interpreter;
-mod parser;
 mod lexer;
+mod parser;
 
 fn main() {
     let mut args = std::env::args().skip(1);

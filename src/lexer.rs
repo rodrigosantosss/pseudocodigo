@@ -38,12 +38,12 @@ pub enum Token {
     Begin,     // Inicio
     End,       // Fim
     Dot,
-    If,           // Se
-    Then,         // então
-    Else,         // Senão
-    While,        // Enquanto,
-    For,          // Para
-    Do, // faça
+    If,     // Se
+    Then,   // então
+    Else,   // Senão
+    While,  // Enquanto,
+    For,    // Para
+    Do,     // faça
     Repeat, // repita
     EndIf,
     EndWhile,
@@ -382,7 +382,9 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
                     return Err(TokenizeError::MissingEndQuotes(line, char, buffer));
                 }
             }
-            tokens.push(Token::StringLiteral(buffer.into(), unsafe { c.try_into().unwrap_unchecked() }));
+            tokens.push(Token::StringLiteral(buffer.into(), unsafe {
+                c.try_into().unwrap_unchecked()
+            }));
         } else if c == '#' {
             while !matches!(iterator.next(), Some('\n') | None) {}
             line += 1;

@@ -1,4 +1,7 @@
-use crate::parser::{ExprTree, ExprToken, OperationToken, ValueToken, Instruction, Program, Statement, Type, Variable};
+use crate::parser::{
+    ExprToken, ExprTree, Instruction, OperationToken, Program, Statement, Type, ValueToken,
+    Variable,
+};
 use std::fmt::Display;
 use std::{collections::HashMap, rc::Rc};
 
@@ -550,7 +553,12 @@ fn generate_expression(
                     }
                     Type::Character | Type::Boolean => {
                         if expr_types == Type::Boolean
-                            && !matches!(expression.token, ExprToken::Op(OperationToken::Equality | OperationToken::Inequality))
+                            && !matches!(
+                                expression.token,
+                                ExprToken::Op(
+                                    OperationToken::Equality | OperationToken::Inequality
+                                )
+                            )
                         {
                             return Err(GenerationError::OperationNotSupportedByType);
                         }

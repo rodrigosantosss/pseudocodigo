@@ -96,7 +96,7 @@ pub enum ExprToken {
 
 impl TryFrom<&Token> for OperationToken {
     type Error = ();
-    
+
     fn try_from(value: &Token) -> Result<Self, Self::Error> {
         match value {
             Token::Not => Ok(OperationToken::Not),
@@ -412,7 +412,9 @@ fn parse_expression(expr: Vec<Expression>, line: usize) -> Result<ExprTree, Pars
     if buffer.len() == 1 {
         Ok(
             match unsafe { buffer.into_iter().next().unwrap_unchecked() } {
-                Expression::Token(token) => ExprTree::new(unsafe { token.try_into().unwrap_unchecked() }),
+                Expression::Token(token) => {
+                    ExprTree::new(unsafe { token.try_into().unwrap_unchecked() })
+                }
                 Expression::Tree(tree) => tree,
             },
         )
@@ -455,7 +457,7 @@ macro_rules! expected_token {
 fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statement>, ParseError> {
     let mut tokens = tokens.into_iter().peekable();
     let mut statements = Vec::new();
-    
+
     while let Some(token) = tokens.next() {
         if let Token::Identifier(ident) = token {
             expected_token!(tokens, Arrow, *line);
@@ -504,8 +506,13 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             let mut content: Vec<ValueToken> = Vec::new();
             loop {
                 content.push(match tokens.next() {
-                    Some(token) => token.clone().try_into().map_err(|_| ParseError::ExpectedIdentifier(*line, token.to_string()))?,
-                    None => return Err(ParseError::ExpectedIdentifier(*line, String::from("nada"))),
+                    Some(token) => token
+                        .clone()
+                        .try_into()
+                        .map_err(|_| ParseError::ExpectedIdentifier(*line, token.to_string()))?,
+                    None => {
+                        return Err(ParseError::ExpectedIdentifier(*line, String::from("nada")))
+                    }
                 });
                 match tokens.peek() {
                     Some(Token::Comma) => tokens.next(),
@@ -608,7 +615,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             let mut condition = Vec::new();
             loop {
                 match tokens.next() {
-                    Some(Token::Do) =>  break,
+                    Some(Token::Do) => break,
                     Some(token) => condition.push(Expression::Token(token)),
                     None => {
                         return Err(ParseError::Expected(
@@ -771,7 +778,8 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
                 }
                 step_expr = Some(parse_expression(step_expr_vec, *line)?);
             }
-            let step_expr = step_expr.unwrap_or(ExprTree::new(ExprToken::Val(ValueToken::IntLiteral(1))));
+            let step_expr =
+                step_expr.unwrap_or(ExprTree::new(ExprToken::Val(ValueToken::IntLiteral(1))));
             let mut content = Vec::new();
             let mut end_for_count = 0usize;
             let mut for_stmt_count = 0usize;
