@@ -1,5 +1,5 @@
 use crate::parser::{
-    ExprToken, ExprTree, Instruction, OperationToken, Program, Statement, Type, ValueToken,
+    ExprToken, ExprTree, Instruction, OperationToken, Program, Statement, Type, ValueToken, SimpleType,
 };
 use std::char::ParseCharError;
 use std::fmt::Display;
@@ -18,6 +18,11 @@ enum InterValue {
     Character(char),
     CharacterChain(Rc<str>),
     Boolean(bool),
+    VectorInt(Box<[i64]>, i64),
+    VectorReal(Box<[f64]>, i64),
+    VectorChar(Box<[char]>, i64),
+    VectorStr(Box<[Rc<str>]>, i64),
+    VectorBool(Box<[bool]>, i64),
 }
 
 impl InterValue {
@@ -28,6 +33,7 @@ impl InterValue {
             Self::Character(x) => (*x as i64) as f64,
             Self::CharacterChain(x) => (!x.is_empty() as i64) as f64,
             Self::Boolean(x) => (*x as i64) as f64,
+            _ => unreachable!(),
         }
     }
 
@@ -38,6 +44,18 @@ impl InterValue {
             Self::Character(x) => *x as i64,
             Self::CharacterChain(x) => !x.is_empty() as i64,
             Self::Boolean(x) => *x as i64,
+            _ => unreachable!(),
+        }
+    }
+
+    fn to_char(&self) -> char {
+        match self {
+            Self::Integer(x) => *x as u8 as char,
+            Self::Real(x) => *x as u8 as char,
+            Self::Character(x) => *x,
+            Self::CharacterChain(x) => x.chars().next().unwrap_or_default(),
+            Self::Boolean(x) => if *x { 'V' } else { 'F' },
+            _ => unreachable!(),
         }
     }
 
@@ -48,6 +66,7 @@ impl InterValue {
             Self::Character(x) => *x != '\0',
             Self::CharacterChain(x) => !x.is_empty(),
             Self::Boolean(x) => *x,
+            _ => unreachable!(),
         }
     }
 
@@ -81,11 +100,23 @@ impl InterValue {
 
     fn get_type(&self) -> Type {
         match self {
-            Self::Integer(_) => Type::Integer,
-            Self::Real(_) => Type::Real,
-            Self::Character(_) => Type::Character,
-            Self::CharacterChain(_) => Type::CharacterChain(false),
-            Self::Boolean(_) => Type::Boolean,
+            Self::Integer(_) => Type::Simple(SimpleType::Integer),
+            Self::Real(_) => Type::Simple(SimpleType::Real),
+            Self::Character(_) => Type::Simple(SimpleType::Character),
+            Self::CharacterChain(_) => Type::Simple(SimpleType::CharacterChain(false)),
+            Self::Boolean(_) => Type::Simple(SimpleType::Boolean),
+            Self::VectorInt(x, start) => Type::Vector(SimpleType::Integer, *start, start + x.len() as i64 - 1),
+            Self::VectorReal(x, start) => Type::Vector(SimpleType::Real, *start, start + x.len() as i64 - 1),
+            Self::VectorChar(x, start) => Type::Vector(SimpleType::Character, *start, start + x.len() as i64 - 1),
+            Self::VectorStr(x, start) => Type::Vector(SimpleType::CharacterChain(false), *start, start + x.len() as i64 - 1),
+            Self::VectorBool(x, start) => Type::Vector(SimpleType::Boolean, *start, start + x.len() as i64 - 1),
+        }
+    }
+
+    fn unwrap_string(&self) -> Rc<str> {
+        match self {
+            Self::CharacterChain(str) => str.clone(),
+            _ => unreachable!(),
         }
     }
 }
@@ -95,6 +126,8 @@ pub enum RuntimeError {
     ReadError,
     UndeclaredIdentifier,
     StandardInputError,
+    CannotReadBooleans,
+    CannotReadVectors,
 }
 
 impl Display for RuntimeError {
@@ -106,6 +139,8 @@ impl Display for RuntimeError {
                 write!(f, "Há um identificador não declarado a ser usado.")
             }
             Self::StandardInputError => write!(f, "Erro a ler da standard input stream."),
+            Self::CannotReadBooleans => write!(f, "Não é possível ler valores lógicos."),
+            Self::CannotReadVectors => write!(f, "Não é possível ler vetores."),
         }
     }
 }
@@ -258,14 +293,19 @@ impl PartialOrd for InterValue {
     }
 }
 
-impl ToString for InterValue {
-    fn to_string(&self) -> String {
+impl Display for InterValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Integer(x) => x.to_string(),
-            Self::Real(x) => x.to_string(),
-            Self::Character(x) => String::from(*x),
-            Self::CharacterChain(x) => x.to_string(),
-            Self::Boolean(x) => x.to_string(),
+            Self::Integer(x) => write!(f, "{x}"),
+            Self::Real(x) => write!(f, "{x}"),
+            Self::Character(x) => write!(f, "{x}"),
+            Self::CharacterChain(x) => write!(f, "{x}"),
+            Self::Boolean(x) => write!(f, "{x}"),
+            Self::VectorInt(x, _) => write!(f, "{:?}", x),
+            Self::VectorReal(x, _) => write!(f, "{:?}", x),
+            Self::VectorChar(x, _) => write!(f, "{:?}", x),
+            Self::VectorStr(x, _) => write!(f, "{:?}", x),
+            Self::VectorBool(x, _) => write!(f, "{:?}", x),
         }
     }
 }
@@ -405,6 +445,32 @@ fn interpret_statement(
                 return Err(RuntimeError::MismatchedTypes);
             }
         }
+        Statement::SingleInstruction(Instruction::VecAssign(ident, i_expr, expr)) => {
+            let vec = variables.get_mut(ident).ok_or(RuntimeError::UndeclaredIdentifier)?;
+            let ctype = vec.get_type();
+            if !ctype.is_vector() {
+                return Err(RuntimeError::MismatchedTypes);
+            }
+            let stype = ctype.get_simple_type();
+            let index = evaluate_expression(&i_expr, variables)?;
+            if index.get_type() != Type::Simple(SimpleType::Integer) {
+                return Err(RuntimeError::MismatchedTypes);
+            }
+            let index = index.to_integer() as usize;
+            let result = evaluate_expression(&expr, variables)?;
+            if result.get_type() != Type::Simple(stype) {
+                return Err(RuntimeError::MismatchedTypes);
+            }
+            let vec = variables.get_mut(ident).ok_or(RuntimeError::UndeclaredIdentifier)?;
+            match vec {
+                InterValue::VectorInt(vec, start) => vec[index - *start as usize] = result.to_integer(),
+                InterValue::VectorReal(vec, start) => vec[index - *start as usize] = result.to_real(),
+                InterValue::VectorChar(vec, start) => vec[index - *start as usize] = result.to_char(),
+                InterValue::VectorStr(vec, start) => vec[index - *start as usize] = result.unwrap_string(),
+                InterValue::VectorBool(vec, start) => vec[index - *start as usize] = result.to_boolean(),
+                _ => unreachable!(),
+            }
+        }
         Statement::SingleInstruction(Instruction::Write(tokens)) => {
             let mut buffer = String::new();
             for token in tokens {
@@ -445,9 +511,8 @@ fn interpret_statement(
                         ident.clone(),
                         InterValue::CharacterChain(Rc::from(buffer.trim())),
                     ),
-                    InterValue::Boolean(_) => {
-                        variables.insert(ident.clone(), InterValue::Boolean(buffer.trim().parse()?))
-                    }
+                    InterValue::Boolean(_) => return Err(RuntimeError::CannotReadBooleans),
+                    _ => return Err(RuntimeError::CannotReadVectors),
                 };
                 buffer.clear();
             }
@@ -504,7 +569,7 @@ fn interpret_statement(
             let var = variables
                 .get(ident)
                 .ok_or(RuntimeError::UndeclaredIdentifier)?;
-            if var.get_type() != Type::Integer {
+            if var.get_type() != Type::Simple(SimpleType::Integer) {
                 return Err(RuntimeError::MismatchedTypes);
             }
             while i <= end {
@@ -525,11 +590,21 @@ pub fn interpret(program: &Program) {
         variables.insert(
             ident.clone(),
             match var.var_type {
-                Type::Integer => InterValue::Integer(Default::default()),
-                Type::Real => InterValue::Real(Default::default()),
-                Type::Character => InterValue::Character(Default::default()),
-                Type::CharacterChain(_) => InterValue::CharacterChain(Rc::from("")),
-                Type::Boolean => InterValue::Boolean(Default::default()),
+                Type::Simple(SimpleType::Integer) => InterValue::Integer(Default::default()),
+                Type::Simple(SimpleType::Real) => InterValue::Real(Default::default()),
+                Type::Simple(SimpleType::Character) => InterValue::Character(Default::default()),
+                Type::Simple(SimpleType::CharacterChain(_)) => InterValue::CharacterChain(Rc::from("")),
+                Type::Simple(SimpleType::Boolean) => InterValue::Boolean(Default::default()),
+                Type::Vector(stype, start, end) => {
+                    let len = (end - start + 1) as usize;
+                    match stype {
+                        SimpleType::Integer => InterValue::VectorInt(vec![ Default::default(); len ].into_boxed_slice(), start),
+                        SimpleType::Real => InterValue::VectorReal(vec![ Default::default(); len ].into_boxed_slice(), start),
+                        SimpleType::CharacterChain(_) => InterValue::VectorStr(vec![ Rc::from(""); len ].into_boxed_slice(), start),
+                        SimpleType::Character => InterValue::VectorChar(vec![ Default::default(); len ].into_boxed_slice(), start),
+                        SimpleType::Boolean => InterValue::VectorBool(vec![ Default::default(); len ].into_boxed_slice(), start),
+                    }
+                }
             },
         );
     }

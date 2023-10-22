@@ -1,5 +1,5 @@
 use crate::parser::{
-    ExprToken, ExprTree, Instruction, OperationToken, Program, Statement, Type, ValueToken,
+    ExprToken, ExprTree, Instruction, OperationToken, Program, Statement, Type, SimpleType, ValueToken,
     Variable,
 };
 use std::fmt::Display;
@@ -52,12 +52,12 @@ fn type_inference(
     match &expression.token {
         ExprToken::Val(ValueToken::Identifier(ident)) => Some(variables.get(ident)?.var_type),
         ExprToken::Val(ValueToken::StringLiteral(content)) => Some(if content.len() != 1 {
-            Type::CharacterChain(false)
+            Type::Simple(SimpleType::CharacterChain(false))
         } else {
-            Type::Character
+            Type::Simple(SimpleType::Character)
         }),
-        ExprToken::Val(ValueToken::IntLiteral(_)) => Some(Type::Integer),
-        ExprToken::Val(ValueToken::RealLiteral(_)) => Some(Type::Real),
+        ExprToken::Val(ValueToken::IntLiteral(_)) => Some(Type::Simple(SimpleType::Integer)),
+        ExprToken::Val(ValueToken::RealLiteral(_)) => Some(Type::Simple(SimpleType::Real)),
         ExprToken::Val(ValueToken::True)
         | ExprToken::Val(ValueToken::False)
         | ExprToken::Op(OperationToken::LessThan)
@@ -65,7 +65,7 @@ fn type_inference(
         | ExprToken::Op(OperationToken::GreaterThan)
         | ExprToken::Op(OperationToken::GreaterThanOrEqual)
         | ExprToken::Op(OperationToken::Equality)
-        | ExprToken::Op(OperationToken::Inequality) => Some(Type::Boolean),
+        | ExprToken::Op(OperationToken::Inequality) => Some(Type::Simple(SimpleType::Boolean)),
         _ => expression
             .left
             .as_ref()
@@ -88,16 +88,16 @@ fn generate_expression(
     result_type: Type,
 ) -> Result<(), GenerationError> {
     match result_type {
-        Type::Integer => match expression.token {
+        Type::Simple(SimpleType::Integer) => match expression.token {
             ExprToken::Val(ValueToken::Identifier(ident)) => {
                 let var = variables
                     .get(&ident)
                     .ok_or(GenerationError::IdentifierNotDeclared)?;
                 match var.var_type {
-                    Type::Integer => instructions.push(
+                    Type::Simple(SimpleType::Integer) => instructions.push(
                         format!("\tmov rax, qword ptr [rbp-{}]", var.offset).into_boxed_str(),
                     ),
-                    Type::Boolean | Type::Character => {
+                    Type::Simple(SimpleType::Boolean | SimpleType::Character) => {
                         instructions.push(
                             format!("\tmovzx rax, byte ptr [rbp-{}]", var.offset).into_boxed_str(),
                         );
@@ -324,12 +324,12 @@ fn generate_expression(
             }
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
-        Type::CharacterChain(_) => match expression.token {
+        Type::Simple(SimpleType::CharacterChain(_)) => match expression.token {
             ExprToken::Val(ValueToken::Identifier(ident)) => {
                 let var = variables
                     .get(&ident)
                     .ok_or(GenerationError::IdentifierNotDeclared)?;
-                if let Type::CharacterChain(_) = var.var_type {
+                if let Type::Simple(SimpleType::CharacterChain(_)) = var.var_type {
                     instructions.push(
                         format!("\tmov rax, qword ptr [rbp-{}]", var.offset).into_boxed_str(),
                     );
@@ -345,12 +345,12 @@ fn generate_expression(
             }
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
-        Type::Character => match expression.token {
+        Type::Simple(SimpleType::Character) => match expression.token {
             ExprToken::Val(ValueToken::Identifier(ident)) => {
                 let var = variables
                     .get(&ident)
                     .ok_or(GenerationError::IdentifierNotDeclared)?;
-                if let Type::Character = var.var_type {
+                if let Type::Simple(SimpleType::Character) = var.var_type {
                     instructions
                         .push(format!("\tmov al, byte ptr [rbp-{}]", var.offset).into_boxed_str());
                     instructions.push(Box::from("\tsub rsp, 1"));
@@ -373,12 +373,12 @@ fn generate_expression(
             }
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
-        Type::Boolean => match expression.token {
+        Type::Simple(SimpleType::Boolean) => match expression.token {
             ExprToken::Val(ValueToken::Identifier(ident)) => {
                 let var = variables
                     .get(&ident)
                     .ok_or(GenerationError::IdentifierNotDeclared)?;
-                if let Type::Boolean = var.var_type {
+                if let Type::Simple(SimpleType::Boolean) = var.var_type {
                     instructions
                         .push(format!("\tmov al, byte ptr [rbp-{}]", var.offset).into_boxed_str());
                     instructions.push(Box::from("\tsub rsp, 1"));
@@ -499,10 +499,10 @@ fn generate_expression(
                 let expr_types = if expr_left == expr_right {
                     expr_left
                 } else {
-                    if matches!(expr_left, Some(Type::CharacterChain(_)))
-                        || matches!(expr_right, Some(Type::CharacterChain(_)))
+                    if matches!(expr_left, Some(Type::Simple(SimpleType::CharacterChain(_))))
+                        || matches!(expr_right, Some(Type::Simple(SimpleType::CharacterChain(_))))
                     {
-                        Some(Type::CharacterChain(false))
+                        Some(Type::Simple(SimpleType::CharacterChain(false)))
                     } else {
                         expr_left.or(expr_right)
                     }
@@ -532,15 +532,15 @@ fn generate_expression(
                     _ => unreachable!(),
                 };
                 match expr_types {
-                    Type::Integer | Type::CharacterChain(_) => {
+                    Type::Simple(SimpleType::Integer | SimpleType::CharacterChain(_)) => {
                         instructions.pop();
                         instructions.push(Box::from("\tmov rdi, rax"));
                         match expr_types {
-                            Type::Integer => {
+                            Type::Simple(SimpleType::Integer) => {
                                 instructions.push(Box::from("\tpop rdx"));
                                 instructions.push(Box::from("\tcmp rdx, rdi"));
                             }
-                            Type::CharacterChain(_) => {
+                            Type::Simple(SimpleType::CharacterChain(_)) => {
                                 instructions.push(Box::from("\tpop rsi"));
                                 instructions.push(Box::from("\tcall strcmp"));
                                 instructions.push(Box::from("\tcmp rax, 0"));
@@ -551,8 +551,8 @@ fn generate_expression(
                         instructions.push(Box::from("\tsub rsp, 1"));
                         instructions.push(Box::from("\tmov byte ptr [rsp], al"));
                     }
-                    Type::Character | Type::Boolean => {
-                        if expr_types == Type::Boolean
+                    Type::Simple(SimpleType::Character | SimpleType::Boolean) => {
+                        if expr_types == Type::Simple(SimpleType::Boolean)
                             && !matches!(
                                 expression.token,
                                 ExprToken::Op(
@@ -571,12 +571,14 @@ fn generate_expression(
                         instructions.push(Box::from("\tsub rsp, 1"));
                         instructions.push(Box::from("\tmov byte ptr [rsp], al"));
                     }
-                    Type::Real => unimplemented!(),
+                    Type::Simple(SimpleType::Real) => unimplemented!(),
+                    Type::Vector(_, _, _) => return Err(GenerationError::OperationNotSupportedByType),
                 }
             }
             _ => return Err(GenerationError::OperationNotSupportedByType),
         },
-        Type::Real => unimplemented!(),
+        Type::Simple(SimpleType::Real) => unimplemented!(),
+        Type::Vector(_, _, _) => return Err(GenerationError::OperationNotSupportedByType),
     }
     Ok(())
 }
@@ -592,8 +594,8 @@ fn generate_statement(
             let var = variables
                 .get_mut(&ident)
                 .ok_or(GenerationError::IdentifierNotDeclared)?;
-            if var.var_type == Type::CharacterChain(true) {
-                var.var_type = Type::CharacterChain(false);
+            if var.var_type == Type::Simple(SimpleType::CharacterChain(true)) {
+                var.var_type = Type::Simple(SimpleType::CharacterChain(false));
                 instructions
                     .push(format!("\tmov rdi, qword ptr [rbp-{}]", var.offset).into_boxed_str());
                 instructions.push(Box::from("\tcall free"));
@@ -607,20 +609,22 @@ fn generate_statement(
                 var.var_type,
             )?;
             match var.var_type {
-                Type::Real | Type::Integer | Type::CharacterChain(_) => {
+                Type::Simple(SimpleType::Real | SimpleType::Integer | SimpleType::CharacterChain(_)) => {
                     instructions.pop();
                     instructions.push(
                         format!("\tmov qword ptr [rbp-{}], rax", var.offset).into_boxed_str(),
                     );
                 }
-                Type::Boolean | Type::Character => {
+                Type::Simple(SimpleType::Boolean | SimpleType::Character) => {
                     instructions.pop();
                     instructions.pop();
                     instructions
                         .push(format!("\tmov byte ptr [rbp-{}], al", var.offset).into_boxed_str());
                 }
+                Type::Vector(_, _, _) => return Err(GenerationError::OperationNotSupportedByType),
             }
         }
+        Statement::SingleInstruction(Instruction::VecAssign(_, _, _)) => unimplemented!(),
         Statement::SingleInstruction(Instruction::Write(tokens)) => {
             let mut buffer = String::new();
             let mut vars_to_write: Vec<Variable> = Vec::new();
@@ -634,11 +638,12 @@ fn generate_statement(
                             .get(&ident)
                             .ok_or(GenerationError::IdentifierNotDeclared)?;
                         buffer.push_str(match var.var_type {
-                            Type::Real => "%lf",
-                            Type::Integer => "%ld",
-                            Type::Character => "%c",
-                            Type::CharacterChain(_) => "%s",
-                            Type::Boolean => "%s",
+                            Type::Simple(SimpleType::Real) => "%lf",
+                            Type::Simple(SimpleType::Integer) => "%ld",
+                            Type::Simple(SimpleType::Character) => "%c",
+                            Type::Simple(SimpleType::CharacterChain(_)) => "%s",
+                            Type::Simple(SimpleType::Boolean) => "%s",
+                            Type::Vector(_, _, _) => return Err(GenerationError::OperationNotSupportedByType),
                         });
                         vars_to_write.push(var.clone());
                     }
@@ -654,7 +659,7 @@ fn generate_statement(
             let mut normal_passed = 0usize;
             for var in vars_to_write {
                 match var.var_type {
-                    Type::Integer | Type::CharacterChain(_) => {
+                    Type::Simple(SimpleType::Integer | SimpleType::CharacterChain(_)) => {
                         if normal_passed < 5 {
                             normal_passed += 1;
                             instructions.push(
@@ -668,7 +673,7 @@ fn generate_statement(
                             leftover.push(var);
                         }
                     }
-                    Type::Boolean => {
+                    Type::Simple(SimpleType::Boolean) => {
                         if normal_passed < 5 {
                             normal_passed += 1;
                             program_data.bool_str = true;
@@ -690,7 +695,7 @@ fn generate_statement(
                             leftover.push(var);
                         }
                     }
-                    Type::Real => {
+                    Type::Simple(SimpleType::Real) => {
                         if fp_passed < 7 {
                             instructions.push(
                                 format!("\tmovsd xmm{fp_passed}, qword ptr [rbp-{}]", var.offset)
@@ -701,7 +706,7 @@ fn generate_statement(
                             leftover.push(var);
                         }
                     }
-                    Type::Character => {
+                    Type::Simple(SimpleType::Character) => {
                         if normal_passed < 5 {
                             normal_passed += 1;
                             instructions.push(
@@ -715,18 +720,19 @@ fn generate_statement(
                             leftover.push(var);
                         }
                     }
+                    Type::Vector(_, _, _) => return Err(GenerationError::OperationNotSupportedByType),
                 }
             }
             leftover.reverse();
             for var in leftover {
                 match var.var_type {
-                    Type::Integer | Type::Real | Type::CharacterChain(_) => {
+                    Type::Simple(SimpleType::Integer | SimpleType::Real | SimpleType::CharacterChain(_)) => {
                         instructions.push(
                             format!("mov rax, qword ptr [rbp-{}]", var.offset).into_boxed_str(),
                         );
                         instructions.push(Box::from("\tpush rax"));
                     }
-                    Type::Boolean => {
+                    Type::Simple(SimpleType::Boolean) => {
                         program_data.bool_str = true;
                         instructions.push(Box::from("\tlea r10, [verdadeiro]"));
                         instructions.push(format!("\tlea r11, [falso]").into_boxed_str());
@@ -738,13 +744,14 @@ fn generate_statement(
                         instructions.push(format!("\tcmovne r11, r10").into_boxed_str());
                         instructions.push(Box::from("\tpush r11"));
                     }
-                    Type::Character => {
+                    Type::Simple(SimpleType::Character) => {
                         instructions.push(
                             format!("mov al, byte ptr [rbp-{}]", var.offset).into_boxed_str(),
                         );
                         instructions.push(Box::from("\tsub rsp, 1"));
                         instructions.push(Box::from("\tmov byte ptr [rsp], al"));
                     }
+                    Type::Vector(_, _, _) => return Err(GenerationError::OperationNotSupportedByType),
                 }
             }
             instructions.push(Box::from("\txor rax, rax"));
@@ -756,16 +763,17 @@ fn generate_statement(
                 .map(|ident| {
                     if let Some(var) = variables.get_mut(&ident) {
                         let i = program_data.add_string(Box::from(match var.var_type {
-                            Type::Real => "%lf",
-                            Type::Integer => "%ld",
-                            Type::Character => "%c",
-                            Type::CharacterChain(_) => "%s",
-                            Type::Boolean => return Err(GenerationError::CannotReadBooleans),
+                            Type::Simple(SimpleType::Real) => "%lf",
+                            Type::Simple(SimpleType::Integer) => "%ld",
+                            Type::Simple(SimpleType::Character) => "%c",
+                            Type::Simple(SimpleType::CharacterChain(_)) => "%s",
+                            Type::Simple(SimpleType::Boolean) => return Err(GenerationError::CannotReadBooleans),
+                            Type::Vector(_, _, _) => return Err(GenerationError::OperationNotSupportedByType),
                         }));
                         match var.var_type {
-                            Type::CharacterChain(_) => {
-                                if var.var_type == Type::CharacterChain(false) {
-                                    var.var_type = Type::CharacterChain(true);
+                            Type::Simple(SimpleType::CharacterChain(_)) => {
+                                if var.var_type == Type::Simple(SimpleType::CharacterChain(false)) {
+                                    var.var_type = Type::Simple(SimpleType::CharacterChain(true));
                                     instructions.push(Box::from("\tmov rdi, 256"));
                                     instructions.push(Box::from("\tcall malloc"));
                                     instructions.push(
@@ -802,7 +810,7 @@ fn generate_statement(
                 variables,
                 instructions,
                 program_data,
-                Type::Boolean,
+                Type::Simple(SimpleType::Boolean),
             )?;
             instructions.pop();
             instructions.pop();
@@ -849,7 +857,7 @@ fn generate_statement(
                 variables,
                 instructions,
                 program_data,
-                Type::Boolean,
+                Type::Simple(SimpleType::Boolean),
             )?;
             instructions.pop();
             instructions.pop();
@@ -868,7 +876,7 @@ fn generate_statement(
                 variables,
                 instructions,
                 program_data,
-                Type::Boolean,
+                Type::Simple(SimpleType::Boolean),
             )?;
             instructions.pop();
             instructions.pop();
@@ -879,16 +887,16 @@ fn generate_statement(
             let var = variables
                 .get(&ident)
                 .ok_or(GenerationError::IdentifierNotDeclared)?;
-            if var.var_type != Type::Integer {
+            if var.var_type != Type::Simple(SimpleType::Integer) {
                 return Err(GenerationError::TypeError);
             }
             let offset = var.offset;
-            generate_expression(end, variables, instructions, program_data, Type::Integer)?;
-            generate_expression(step, variables, instructions, program_data, Type::Integer)?;
+            generate_expression(end, variables, instructions, program_data, Type::Simple(SimpleType::Integer))?;
+            generate_expression(step, variables, instructions, program_data, Type::Simple(SimpleType::Integer))?;
             let start_branch = program_data.branches;
             let cond_branch = program_data.branches + 1;
             program_data.branches += 2;
-            generate_expression(start, variables, instructions, program_data, Type::Integer)?;
+            generate_expression(start, variables, instructions, program_data, Type::Simple(SimpleType::Integer))?;
             instructions.pop();
             instructions.push(format!("\tjmp B{cond_branch}").into_boxed_str());
             instructions.push(format!("B{start_branch}:").into_boxed_str());
@@ -955,7 +963,7 @@ pub fn generate(program: Program) -> Result<Vec<Box<str>>, GenerationError> {
     }
 
     for (_, var) in variables {
-        if let Type::CharacterChain(true) = var.var_type {
+        if let Type::Simple(SimpleType::CharacterChain(true)) = var.var_type {
             instructions
                 .push(format!("\tmov rdi, qword ptr [rbp-{}]", var.offset).into_boxed_str());
             instructions.push(Box::from("\tcall free"));

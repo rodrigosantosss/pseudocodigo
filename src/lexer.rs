@@ -55,6 +55,8 @@ pub enum Token {
     BreakLine,
     OpenParenthesis,
     CloseParenthesis,
+    OpenBrackets,
+    CloseBrackets,
     Identifier(Rc<str>),
     Arrow, // <-
     Colon,
@@ -66,6 +68,8 @@ pub enum Token {
     Character,      // caractere
     CharacterChain, // cadeia
     Boolean,        // lógico
+    Vector,         // Vetor
+    Of,             // de
     True,           // verdadeiro
     False,          // falso
     Plus,
@@ -90,69 +94,6 @@ pub enum Token {
     Read,      // Ler
 }
 
-impl From<String> for Token {
-    fn from(value: String) -> Self {
-        match value.as_str() {
-            "Algoritmo" => Self::Algorithm,
-            "Variáveis" => Self::Data,
-            "Início" => Self::Begin,
-            "Fim" => Self::End,
-            "Se" => Self::If,
-            "Então" => Self::Then,
-            "Senão" => Self::Else,
-            "Enquanto" => Self::While,
-            "Para" => Self::For,
-            "faça" => Self::Do,
-            "Repita" => Self::Repeat,
-            "FimSe" => Self::EndIf,
-            "FimEnquanto" => Self::EndWhile,
-            "FimPara" => Self::EndFor,
-            "FimRepita" => Self::EndRepeat,
-            "de" => Self::From,
-            "até" => Self::To,
-            "passo" => Self::Step,
-            "inteiro" => Self::Integer,
-            "real" => Self::Real,
-            "caractere" => Self::Character,
-            "cadeia" => Self::CharacterChain,
-            "lógico" => Self::Boolean,
-            "verdadeiro" => Self::True,
-            "falso" => Self::False,
-            "div" => Self::IDiv,
-            "mod" => Self::Mod,
-            "e" => Self::And,
-            "ou" => Self::Or,
-            "xor" => Self::XOr,
-            "não" => Self::Not,
-            "Escrever" => Self::Write,
-            "Ler" => Self::Read,
-            _ => Self::Identifier(value.into()),
-        }
-    }
-}
-
-impl TryFrom<char> for Token {
-    type Error = ();
-
-    fn try_from(value: char) -> Result<Token, ()> {
-        match value {
-            '\n' => Ok(Self::BreakLine),
-            '.' => Ok(Self::Dot),
-            '(' => Ok(Self::OpenParenthesis),
-            ')' => Ok(Self::CloseParenthesis),
-            ':' => Ok(Self::Colon),
-            '+' => Ok(Self::Plus),
-            '-' => Ok(Self::Minus),
-            '*' => Ok(Self::Star),
-            '/' => Ok(Self::Slash),
-            '^' => Ok(Self::Pow),
-            ',' => Ok(Self::Comma),
-            '=' => Ok(Self::Equal),
-            _ => Err(()),
-        }
-    }
-}
-
 impl ToString for Token {
     fn to_string(&self) -> String {
         match self {
@@ -172,7 +113,7 @@ impl ToString for Token {
             Self::EndWhile => String::from("FimEnquanto"),
             Self::EndFor => String::from("FimPara"),
             Self::EndRepeat => String::from("FimRepita"),
-            Self::From => String::from("de"),
+            Self::From | Self::Of => String::from("de"),
             Self::To => String::from("até"),
             Self::Step => String::from("passo"),
             Self::Integer => String::from("inteiro"),
@@ -180,6 +121,7 @@ impl ToString for Token {
             Self::Character => String::from("caractere"),
             Self::CharacterChain => String::from("cadeia"),
             Self::Boolean => String::from("lógico"),
+            Self::Vector => String::from("Vetor"),
             Self::True => String::from("verdadeiro"),
             Self::False => String::from("falso"),
             Self::IDiv => String::from("div"),
@@ -197,6 +139,8 @@ impl ToString for Token {
             Self::BreakLine => String::from("\n"),
             Self::OpenParenthesis => String::from("("),
             Self::CloseParenthesis => String::from(")"),
+            Self::OpenBrackets => String::from("["),
+            Self::CloseBrackets => String::from("]"),
             Self::Colon => String::from(":"),
             Self::Plus => String::from("+"),
             Self::Minus => String::from("-"),
@@ -218,6 +162,80 @@ impl ToString for Token {
                 str.push(quote);
                 str
             }
+        }
+    }
+}
+
+impl TryFrom<char> for Token {
+    type Error = ();
+
+    fn try_from(value: char) -> Result<Token, ()> {
+        match value {
+            '\n' => Ok(Self::BreakLine),
+            '.' => Ok(Self::Dot),
+            '(' => Ok(Self::OpenParenthesis),
+            ')' => Ok(Self::CloseParenthesis),
+            '[' => Ok(Self::OpenBrackets),
+            ']' => Ok(Self::CloseBrackets),
+            ':' => Ok(Self::Colon),
+            '+' => Ok(Self::Plus),
+            '-' => Ok(Self::Minus),
+            '*' => Ok(Self::Star),
+            '/' => Ok(Self::Slash),
+            '^' => Ok(Self::Pow),
+            ',' => Ok(Self::Comma),
+            '=' => Ok(Self::Equal),
+            _ => Err(()),
+        }
+    }
+}
+
+pub enum Context {
+    Variables,
+    Code,
+}
+
+impl Token {
+    fn from(value: String, cx: &Context) -> Self {
+        match value.as_str() {
+            "Algoritmo" => Self::Algorithm,
+            "Variáveis" => Self::Data,
+            "Início" => Self::Begin,
+            "Fim" => Self::End,
+            "Se" => Self::If,
+            "Então" => Self::Then,
+            "Senão" => Self::Else,
+            "Enquanto" => Self::While,
+            "Para" => Self::For,
+            "faça" => Self::Do,
+            "Repita" => Self::Repeat,
+            "FimSe" => Self::EndIf,
+            "FimEnquanto" => Self::EndWhile,
+            "FimPara" => Self::EndFor,
+            "FimRepita" => Self::EndRepeat,
+            "de" => match cx {
+                Context::Code => Self::From,
+                Context::Variables => Self::Of,
+            }
+            "até" => Self::To,
+            "passo" => Self::Step,
+            "inteiro" => Self::Integer,
+            "real" => Self::Real,
+            "caractere" => Self::Character,
+            "cadeia" => Self::CharacterChain,
+            "lógico" => Self::Boolean,
+            "Vetor" => Self::Vector,
+            "verdadeiro" => Self::True,
+            "falso" => Self::False,
+            "div" => Self::IDiv,
+            "mod" => Self::Mod,
+            "e" => Self::And,
+            "ou" => Self::Or,
+            "xor" => Self::XOr,
+            "não" => Self::Not,
+            "Escrever" => Self::Write,
+            "Ler" => Self::Read,
+            _ => Self::Identifier(value.into()),
         }
     }
 }
@@ -278,6 +296,8 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
     let mut line: usize = 1;
     let mut char: usize = 0;
 
+    let mut cx = Context::Variables;
+
     while let Some(c) = iterator.next() {
         char += 1;
         if c == '\n' {
@@ -322,7 +342,10 @@ pub fn tokenize(code: String) -> Result<Vec<Token>, TokenizeError> {
                 char += 1;
                 buffer.push(d);
             }
-            let token: Token = buffer.into();
+            let token = Token::from(buffer, &cx);
+            if let Token::Begin = token {
+                cx = Context::Code;
+            }
             tokens.push(token);
         } else if c.is_digit(10) {
             let mut buffer = String::from(c);
