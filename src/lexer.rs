@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Quotes {
     SingleQuotes,
     DoubleQuotes,
@@ -31,7 +31,7 @@ impl TryFrom<char> for Quotes {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Algorithm, // Algoritmo
     Data,      // Variáveis
@@ -55,8 +55,6 @@ pub enum Token {
     BreakLine,
     OpenParenthesis,
     CloseParenthesis,
-    OpenBrackets,
-    CloseBrackets,
     Identifier(Rc<str>),
     Arrow, // <-
     Colon,
@@ -68,7 +66,6 @@ pub enum Token {
     Character,      // caractere
     CharacterChain, // cadeia
     Boolean,        // lógico
-    Vector,         // Vetor
     Of,             // de
     True,           // verdadeiro
     False,          // falso
@@ -91,6 +88,7 @@ pub enum Token {
     XOr,       // xor
     Not,       // não
     Write,     // Escrever
+    WriteLine, // EscreverLinha
     Read,      // Ler
 }
 
@@ -121,7 +119,6 @@ impl ToString for Token {
             Self::Character => String::from("caractere"),
             Self::CharacterChain => String::from("cadeia"),
             Self::Boolean => String::from("lógico"),
-            Self::Vector => String::from("Vetor"),
             Self::True => String::from("verdadeiro"),
             Self::False => String::from("falso"),
             Self::IDiv => String::from("div"),
@@ -139,8 +136,6 @@ impl ToString for Token {
             Self::BreakLine => String::from("\n"),
             Self::OpenParenthesis => String::from("("),
             Self::CloseParenthesis => String::from(")"),
-            Self::OpenBrackets => String::from("["),
-            Self::CloseBrackets => String::from("]"),
             Self::Colon => String::from(":"),
             Self::Plus => String::from("+"),
             Self::Minus => String::from("-"),
@@ -150,6 +145,7 @@ impl ToString for Token {
             Self::Comma => String::from(","),
             Self::Equal => String::from("="),
             Self::Write => String::from("Escrever"),
+            Self::WriteLine => String::from("EscreverLinha"),
             Self::Read => String::from("Ler"),
             Self::Identifier(str) => str.to_string(),
             Self::RealLiteral(real) => real.to_string(),
@@ -175,8 +171,6 @@ impl TryFrom<char> for Token {
             '.' => Ok(Self::Dot),
             '(' => Ok(Self::OpenParenthesis),
             ')' => Ok(Self::CloseParenthesis),
-            '[' => Ok(Self::OpenBrackets),
-            ']' => Ok(Self::CloseBrackets),
             ':' => Ok(Self::Colon),
             '+' => Ok(Self::Plus),
             '-' => Ok(Self::Minus),
@@ -224,7 +218,6 @@ impl Token {
             "caractere" => Self::Character,
             "cadeia" => Self::CharacterChain,
             "lógico" => Self::Boolean,
-            "Vetor" => Self::Vector,
             "verdadeiro" => Self::True,
             "falso" => Self::False,
             "div" => Self::IDiv,
@@ -234,6 +227,7 @@ impl Token {
             "xor" => Self::XOr,
             "não" => Self::Not,
             "Escrever" => Self::Write,
+            "EscreverLinha" => Self::WriteLine,
             "Ler" => Self::Read,
             _ => Self::Identifier(value.into()),
         }

@@ -219,7 +219,7 @@ pub struct Variable {
 pub enum Instruction {
     Assign(Rc<str>, ExprTree),
     Read(Vec<Rc<str>>),
-    Write(Vec<ValueToken>),
+    Write(Vec<ValueToken>, bool),
 }
 
 #[derive(Debug, Clone)]
@@ -504,7 +504,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             expect_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
             statements.push(Statement::SingleInstruction(Instruction::Read(identifiers)));
-        } else if let Token::Write = token {
+        } else if let Token::Write | Token::WriteLine = token {
             expect_token!(tokens, OpenParenthesis, *line);
             let mut content: Vec<ValueToken> = Vec::new();
             loop {
@@ -527,7 +527,7 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
             }
             expect_token!(tokens, BreakLine, ExpectedBreakLine, *line);
             *line += 1;
-            statements.push(Statement::SingleInstruction(Instruction::Write(content)));
+            statements.push(Statement::SingleInstruction(Instruction::Write(content, token == Token::WriteLine)));
         } else if let Token::If = token {
             let mut condition = Vec::new();
             loop {

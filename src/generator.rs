@@ -621,7 +621,7 @@ fn generate_statement(
                 }
             }
         }
-        Statement::SingleInstruction(Instruction::Write(tokens)) => {
+        Statement::SingleInstruction(Instruction::Write(tokens, line)) => {
             let mut buffer = String::new();
             let mut vars_to_write: Vec<Variable> = Vec::new();
             for token in tokens {
@@ -646,7 +646,9 @@ fn generate_statement(
                     ValueToken::False => buffer.push_str("falso"),
                 }
             }
-            buffer.push_str("\\n");
+            if line {
+                buffer.push_str("\\n");
+            }
             let i = program_data.add_string(buffer.into_boxed_str());
             instructions.push(format!("\tlea rdi, [str{i}]").into_boxed_str());
             let mut leftover: Vec<Variable> = Vec::new();

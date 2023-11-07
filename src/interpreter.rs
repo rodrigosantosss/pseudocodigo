@@ -3,6 +3,7 @@ use crate::parser::{
 };
 use std::char::ParseCharError;
 use std::fmt::Display;
+use std::io::Write;
 use std::num::{ParseFloatError, ParseIntError};
 use std::rc::Rc;
 use std::str::ParseBoolError;
@@ -407,7 +408,7 @@ fn interpret_statement(
                 return Err(RuntimeError::MismatchedTypes);
             }
         }
-        Statement::SingleInstruction(Instruction::Write(tokens)) => {
+        Statement::SingleInstruction(Instruction::Write(tokens, line)) => {
             let mut buffer = String::new();
             for token in tokens {
                 if let ValueToken::StringLiteral(str) = token {
@@ -423,7 +424,12 @@ fn interpret_statement(
                     buffer.push_str(&token.to_string());
                 }
             }
-            println!("{buffer}");
+            if *line {
+                println!("{buffer}");
+            } else {
+                print!("{buffer}");
+                let _ = std::io::stdout().flush();
+            }
         }
         Statement::SingleInstruction(Instruction::Read(idents)) => {
             let mut buffer = String::new();
