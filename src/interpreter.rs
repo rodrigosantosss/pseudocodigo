@@ -28,7 +28,6 @@ impl InterValue {
             Self::Character(x) => (*x as i64) as f64,
             Self::CharacterChain(x) => (!x.is_empty() as i64) as f64,
             Self::Boolean(x) => (*x as i64) as f64,
-            _ => unreachable!(),
         }
     }
 
@@ -39,18 +38,6 @@ impl InterValue {
             Self::Character(x) => *x as i64,
             Self::CharacterChain(x) => !x.is_empty() as i64,
             Self::Boolean(x) => *x as i64,
-            _ => unreachable!(),
-        }
-    }
-
-    fn to_char(&self) -> char {
-        match self {
-            Self::Integer(x) => *x as u8 as char,
-            Self::Real(x) => *x as u8 as char,
-            Self::Character(x) => *x,
-            Self::CharacterChain(x) => x.chars().next().unwrap_or_default(),
-            Self::Boolean(x) => if *x { 'V' } else { 'F' },
-            _ => unreachable!(),
         }
     }
 
@@ -61,7 +48,6 @@ impl InterValue {
             Self::Character(x) => *x != '\0',
             Self::CharacterChain(x) => !x.is_empty(),
             Self::Boolean(x) => *x,
-            _ => unreachable!(),
         }
     }
 
@@ -102,13 +88,6 @@ impl InterValue {
             Self::Boolean(_) => Type::Boolean,
         }
     }
-
-    fn unwrap_string(&self) -> Rc<str> {
-        match self {
-            Self::CharacterChain(str) => str.clone(),
-            _ => unreachable!(),
-        }
-    }
 }
 
 pub enum RuntimeError {
@@ -117,7 +96,6 @@ pub enum RuntimeError {
     UndeclaredIdentifier,
     StandardInputError,
     CannotReadBooleans,
-    CannotReadVectors,
 }
 
 impl Display for RuntimeError {
@@ -130,7 +108,6 @@ impl Display for RuntimeError {
             }
             Self::StandardInputError => write!(f, "Erro a ler da standard input stream."),
             Self::CannotReadBooleans => write!(f, "Não é possível ler valores lógicos."),
-            Self::CannotReadVectors => write!(f, "Não é possível ler vetores."),
         }
     }
 }
@@ -471,7 +448,6 @@ fn interpret_statement(
                         InterValue::CharacterChain(Rc::from(buffer.trim())),
                     ),
                     InterValue::Boolean(_) => return Err(RuntimeError::CannotReadBooleans),
-                    _ => return Err(RuntimeError::CannotReadVectors),
                 };
                 buffer.clear();
             }
