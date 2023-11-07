@@ -1,4 +1,3 @@
-#[cfg(not(windows))]
 mod generator;
 mod interpreter;
 mod lexer;

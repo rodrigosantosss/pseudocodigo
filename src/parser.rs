@@ -179,7 +179,7 @@ impl ExprTree {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SimpleType {
+pub enum Type {
     Integer,
     Real,
     Character,
@@ -187,44 +187,23 @@ pub enum SimpleType {
     Boolean,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Type {
-    Simple(SimpleType),
-    Vector(SimpleType, i64, i64)
-}
-
 impl Type {
     fn get_size(&self) -> usize {
         match self {
-            Type::Vector(simple_type, start, end) => Type::Simple(*simple_type).get_size() * (end - start + 1) as usize,
-            Type::Simple(SimpleType::Integer | SimpleType::Real | SimpleType::CharacterChain(_)) => 8,
-            Type::Simple(SimpleType::Character | SimpleType::Boolean) => 1,
-        }
-    }
-
-    pub fn get_simple_type(&self) -> SimpleType {
-        match self {
-            Self::Simple(s) => *s,
-            Self::Vector(s, _, _) => *s,
-        }
-    }
-
-    pub fn is_vector(&self) -> bool {
-        match self {
-            Self::Vector(_, _, _) => true,
-            _ => false,
+            Type::Integer | Type::Real | Type::CharacterChain(_) => 8,
+            Type::Character | Type::Boolean => 1,
         }
     }
 }
 
-impl SimpleType {
+impl Type {
     fn from_token(token: Token) -> Option<Self> {
         match token {
-            Token::Integer => Some(SimpleType::Integer),
-            Token::Real => Some(SimpleType::Real),
-            Token::Character => Some(SimpleType::Character),
-            Token::CharacterChain => Some(SimpleType::CharacterChain(false)),
-            Token::Boolean => Some(SimpleType::Boolean),
+            Token::Integer => Some(Type::Integer),
+            Token::Real => Some(Type::Real),
+            Token::Character => Some(Type::Character),
+            Token::CharacterChain => Some(Type::CharacterChain(false)),
+            Token::Boolean => Some(Type::Boolean),
             _ => None,
         }
     }
@@ -239,7 +218,6 @@ pub struct Variable {
 #[derive(Debug, Clone)]
 pub enum Instruction {
     Assign(Rc<str>, ExprTree),
-    VecAssign(Rc<str>, ExprTree, ExprTree),
     Read(Vec<Rc<str>>),
     Write(Vec<ValueToken>),
 }
@@ -485,56 +463,22 @@ fn parse_statements(tokens: Vec<Token>, line: &mut usize) -> Result<Vec<Statemen
 
     while let Some(token) = tokens.next() {
         if let Token::Identifier(ident) = token {
-            if let Some(Token::OpenBrackets) = tokens.peek() {
-                tokens.next();
-                let mut i_expr = Vec::new();
-                loop {
-                    let token = tokens
-                        .next()
-                        .ok_or(ParseError::Expected(*line, String::from("]"), String::from("nada")))?;
-                    if let Token::CloseBrackets = token {
-                        break;
-                    } else {
-                        i_expr.push(Expression::Token(token));
-                    }
+            expect_token!(tokens, Arrow, *line);
+            let mut expr = Vec::new();
+            loop {
+                let token = tokens
+                    .next()
+                    .ok_or(ParseError::ExpectedBreakLine(*line, String::from("nada")))?;
+                if let Token::BreakLine = token {
+                    break;
+                } else {
+                    expr.push(Expression::Token(token));
                 }
-                
-                let i_expr = parse_expression(i_expr, *line)?;
-                expect_token!(tokens, Arrow, *line);
-                let mut expr = Vec::new();
-                loop {
-                    let token = tokens
-                        .next()
-                        .ok_or(ParseError::ExpectedBreakLine(*line, String::from("nada")))?;
-                    if let Token::BreakLine = token {
-                        break;
-                    } else {
-                        expr.push(Expression::Token(token));
-                    }
-                }
-                statements.push(Statement::SingleInstruction(Instruction::VecAssign(
-                    ident,
-                    i_expr,
-                    parse_expression(expr, *line)?,
-                )));
-            } else {
-                expect_token!(tokens, Arrow, *line);
-                let mut expr = Vec::new();
-                loop {
-                    let token = tokens
-                        .next()
-                        .ok_or(ParseError::ExpectedBreakLine(*line, String::from("nada")))?;
-                    if let Token::BreakLine = token {
-                        break;
-                    } else {
-                        expr.push(Expression::Token(token));
-                    }
-                }
-                statements.push(Statement::SingleInstruction(Instruction::Assign(
-                    ident,
-                    parse_expression(expr, *line)?,
-                )));
             }
+            statements.push(Statement::SingleInstruction(Instruction::Assign(
+                ident,
+                parse_expression(expr, *line)?,
+            )));
             *line += 1;
         } else if let Token::Read = token {
             expect_token!(tokens, OpenParenthesis, *line);
@@ -931,46 +875,13 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseError> {
             line += 1;
             let mut offset: usize = 0;
             let mut identifiers: Vec<Rc<str>> = Vec::new();
-            let mut curr_type: Option<Vec<Token>> = None;
+            let mut curr_type: Option<Token> = None;
             loop {
                 let ident = match iterator.next() {
                     Some(Token::Begin) => break,
                     Some(Token::BreakLine) => {
                         let var_type = match curr_type {
-                            Some(tokens) => {
-                                if tokens.len() == 1 {
-                                    let token = unsafe { tokens.into_iter().next().unwrap_unchecked() };
-                                    if let Some(var_type) = SimpleType::from_token(token.clone()) {
-                                        Type::Simple(var_type)
-                                    } else {
-                                        return Err(ParseError::ExpectedType(line, token.to_string()));
-                                    }
-                                } else {
-                                    let mut type_iterator = tokens.into_iter();
-                                    expect_token!(type_iterator, Vector, line);
-                                    expect_token!(type_iterator, OpenBrackets, line);
-                                    let start = match type_iterator.next() {
-                                        Some(Token::IntLiteral(x)) => x,
-                                        Some(token) => return Err(ParseError::Expected(line, String::from("número"), token.to_string())),
-                                        None => return Err(ParseError::Expected(line, String::from("número"), String::from("nada"))),
-                                    };
-                                    expect_token!(type_iterator, To, line);
-                                    let end = match type_iterator.next() {
-                                        Some(Token::IntLiteral(x)) => x,
-                                        Some(token) => return Err(ParseError::Expected(line, String::from("número"), token.to_string())),
-                                        None => return Err(ParseError::Expected(line, String::from("número"), String::from("nada"))),
-                                    };
-                                    expect_token!(type_iterator, CloseBrackets, line);
-                                    expect_token!(type_iterator, Of, line);
-                                    let token = type_iterator.next().ok_or(ParseError::ExpectedType(line, String::from("nada")))?;
-                                    let simple_type = if let Some(var_type) = SimpleType::from_token(token.clone()) {
-                                        var_type
-                                    } else {
-                                        return Err(ParseError::ExpectedType(line, token.to_string()));
-                                    };
-                                    Type::Vector(simple_type, start, end)
-                                }
-                            }
+                            Some(token) => Type::from_token(token.clone()).ok_or(ParseError::ExpectedType(line, token.to_string()))?,
                             None => {
                                 return Err(ParseError::ExpectedType(line, String::from("nada")))
                             }
@@ -1013,18 +924,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseError> {
                         ))
                     }
                 };
-                curr_type = Some(Vec::new());
-                let curr_type = unsafe { curr_type.as_mut().unwrap_unchecked() };
-                loop {
-                    match iterator.peek() {
-                        Some(Token::BreakLine) => break,
-                        Some(token) => {
-                            curr_type.push(token.clone());
-                            iterator.next();
-                        }
-                        None => return Err(ParseError::ExpectedBreakLine(line, String::from("nada"))),
-                    }
-                }
+                curr_type = iterator.next();
             }
         }
         Some(Token::Begin) => (),
